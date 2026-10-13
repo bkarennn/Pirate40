@@ -19,7 +19,7 @@ const initialState = {
   welcomed: false
 };
 let state;
-try { state = { ...initialState, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') }; }
+try { state = { ...structuredClone(initialState), ...JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') }; }
 catch { state = structuredClone(initialState); }
 const chats = {
   maya: { name: 'MAYA', status: 'Frequência privada', messages: [
@@ -46,6 +46,7 @@ function save() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
 function escapeHtml(str) { return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function head(title, extra = '') { return `<div class="page-heading"><h2>${title}</h2><span class="meta">${extra}</span></div>`; }
 function activate() {
+  if (state.security?.status === 'failed') return;
   scanScreen.classList.add('hidden'); systemScreen.classList.remove('hidden');
   state.unlocked = true; state.page = 'inicio'; state.openChat = null; save(); render();
   if (!state.welcomed) { state.welcomed = true; notify('Mensagem de Maya', 'Cadê você? Já pegou o nosso protótipo?', 'mensagens'); notify('IA de Sobrevivência', 'Assistência local disponível.', 'ia', false); save(); }
@@ -61,6 +62,7 @@ $('#lockButton').addEventListener('click', () => {
   $('#scanButton').disabled = false; $('#scanButton').textContent = 'Reconhecer meu rosto →';
   $('#scanDescription').textContent = 'Desbloqueie seu dispositivo para continuar, Pirate 40.';
   updateNotifications(); $('#notificationButton').setAttribute('aria-expanded', 'false');
+  if (typeof updateSecurityUI === 'function') updateSecurityUI();
 });
 nav.addEventListener('click', e => {
   const button = e.target.closest('[data-page]'); if (!button) return;
@@ -93,6 +95,7 @@ content.addEventListener('click', e => {
 });
 content.addEventListener('change', e => { if (e.target.id === 'locatorToggle') { state.locator = e.target.checked; save(); render(); notify(state.locator ? 'Localização ativada' : 'Localização desativada', state.locator ? 'Seu dispositivo está transmitindo sua posição.' : 'Emissão de posição suspensa.', 'sistema'); }});
 function render() {
+  if (typeof mapCleanup === 'function') mapCleanup();
   nav.querySelectorAll('[data-page]').forEach(b => b.classList.toggle('active', b.dataset.page === state.page));
   const unread = Object.keys(chats).filter(id => !state.read.includes(id)).length;
   const pill = $('#unreadPill'); if (pill) { pill.textContent = unread; pill.hidden = unread === 0; }
@@ -102,16 +105,18 @@ function render() {
   $('#appTitle').textContent = apps.find(a => a.id === state.page)?.name || '';
   updateNotifications();
   $('#bottomLocation').textContent = state.locator ? 'LOCALIZADOR: EMISSÃO ATIVA' : 'LOCALIZADOR: DESLIGADO';
-  const pages = { inicio: renderInicio, ia: (typeof renderIA === 'function' ? renderIA : renderInicio), mensagens: renderMensagens, mapa: renderMapa, galeria: renderGaleria, notas: renderNotas, arquivos: renderArquivos, sistema: renderSistema };
+  const pages = { inicio: renderInicio, ia: (typeof renderIA === 'function' ? renderIA : renderInicio), mensagens: renderMensagens, mapa: renderMapa, galeria: renderGaleria, notas: renderNotas, arquivos: renderArquivos, sistema: renderSistema, seguranca: renderSecurity };
   content.innerHTML = pages[state.page]?.() || renderInicio();
   content.scrollTop = 0;
+  if (state.page === 'mapa') mountWorldMap();
+  if (typeof updateSecurityUI === 'function') updateSecurityUI();
   if (content.animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) content.animate([{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'translateY(0)'}], {duration:220,easing:'ease-out'});
 }
 function renderInicio() {
   const unread = Object.keys(chats).filter(id => !state.read.includes(id)).length;
   return `<div class="home-hero"><div><p class="eyebrow">SEGUNDA-FEIRA, 9 DE ABRIL</p><div class="hero-clock">03<span>:</span>41</div><p class="hero-date">2091 <span>→</span> Um novo dia lá fora.</p></div><div class="orbit-art" aria-hidden="true"><i></i><i></i><i></i><span>40</span></div></div>
-  <div class="home-widgets"><button class="survival-widget" data-go="ia"><span class="widget-icon">${icon('ia')}</span><span><small>AO SEU LADO</small><strong>Um passo de cada vez.</strong><span>Seu guia de sobrevivência está aqui.</span></span><span class="widget-arrow">→</span></button><button class="location-widget" data-go="mapa">${icon('mapa')}<small>ÚLTIMA LOCALIZAÇÃO</small><strong>Em algum lugar<br>no oceano.</strong><span class="location-caption">Instalação desconhecida ?</span></button></div>
-  <div class="apps-heading"><span>Seu universo</span><span>7 aplicativos · modo local</span></div>
+  <div class="home-widgets"><button class="survival-widget" data-go="ia"><span class="widget-icon">${icon('ia')}</span><span><small>AO SEU LADO</small><strong>Um passo de cada vez.</strong><span>Seu guia de sobrevivência está aqui.</span></span><span class="widget-arrow">→</span></button><button class="location-widget" data-go="mapa">${icon('mapa')}<small>ÚLTIMA LOCALIZAÇÃO</small><strong>Em algum lugar<br>no oceano.</strong><span class="location-caption">Instalação desconhecida ↗</span></button></div>
+  <div class="apps-heading"><span>Seu universo</span><span>${apps.length} aplicativos · modo local</span></div>
   <div class="app-grid">${apps.map(a => `<button class="app-launcher" data-go="${a.id}"><span class="app-icon ${a.id}">${icon(a.id)}${a.id === 'mensagens' && unread ? `<b class="app-badge">${unread}</b>` : ''}</span><strong>${a.name}</strong><small>${a.caption}</small></button>`).join('')}</div>
   <button class="home-reminder" data-go="${unread ? 'mensagens' : 'notas'}"><span class="reminder-dot"></span><span>${unread ? 'Você tem conversas esperando por você.' : 'Algumas coisas merecem ser lembradas.'}</span><span>→</span></button>`;
 }
@@ -127,11 +132,7 @@ function renderMensagens() {
   return `${head('COMUNICAÇÕES','REDE DESCENTRALIZADA')}
   <div class="list">${Object.entries(chats).map(([id,chat])=>`<button class="chat-item" data-chat="${id}"><div><strong>${escapeHtml(chat.name)} ${!state.read.includes(id)?'•':''}</strong><p>${escapeHtml(chat.messages.at(-1).text)}</p></div><span class="meta">${chat.messages.at(-1).time} →</span></button>`).join('')}</div>`;
 }
-function renderMapa() {
-  return `${head('LOCALIZAÇÃO','MAPA PARCIAL // 2091')}
-  <div class="map" role="img" aria-label="Mapa fictício de uma localização no oceano, afastada da costa"><div class="land"></div><div class="ping"></div><span class="map-right">SINAL P40<br>${state.locator?'EMISSÃO ATIVA':'ÚLTIMA POSIÇÃO CONHECIDA'}</span><span class="map-label">OCEANO ABERTO // INSTALAÇÃO NÃO CATALOGADA</span></div>
-  <div class="panel" style="margin-top:14px"><p class="eyebrow">DADOS DE POSIÇÃO</p><p class="line">LOCAL: <strong>NÃO IDENTIFICADO</strong></p><p class="line">ESTRUTURA PRÓXIMA: <strong>POSSÍVEL BASE</strong></p><p class="line">CARTOGRAFIA INTERNA: <strong>INDISPONÍVEL</strong></p><p class="muted" style="padding-top:12px">O mapa é ilustrativo; nenhum GPS ou localização real é utilizado.</p></div>`;
-}
+function renderMapa() { return renderWorldMap(); }
 function renderGaleria() {
   const albums = ['Base', 'Equipe', 'Dispositivos', 'Exterior', 'Recuperados'];
   return `${head('Galeria', 'SUAS MEMÓRIAS')}<div class="gallery-intro"><h3>Um lugar para guardar o mundo.</h3><p class="muted">Suas fotografias vão morar aqui.</p></div><div class="album-grid">${albums.map(name => `<div class="album"><div>${icon('galeria')}</div><strong>${name}</strong><span>0 fotografias</span></div>`).join('')}</div><div class="empty"><strong>Nenhuma fotografia por enquanto</strong><p>Álbuns reservados. As imagens serão adicionadas em uma próxima atualização.</p></div>`;
@@ -163,10 +164,12 @@ const apps = [
   {id:'mapa',name:'Mapa',caption:'Encontre seu caminho'},
   {id:'notas',name:'Anotações',caption:'Para não esquecer'},
   {id:'arquivos',name:'Arquivos',caption:'O que ficou guardado'},
+  {id:'seguranca',name:'Segurança',caption:'Cuide da base'},
   {id:'sistema',name:'Configurações',caption:'Do seu jeito'}
 ];
 function icon(name) {
   const paths = {
+    seguranca:'<path d="M16 3 27 7v9c0 7-11 13-11 13S5 23 5 16V7Z"/><path d="m10 16 4 4 8-9"/>',
     mensagens:'<path d="M5 5h22v16H14l-7 5v-5H5z"/><path d="M10 11h12M10 16h8"/>',
     ia:'<rect x="5" y="9" width="22" height="17" rx="7"/><path d="M16 9V5m-3 0h6M2 16v5m28-5v5M11 21h10"/><circle cx="11" cy="15" r="1"/><circle cx="21" cy="15" r="1"/>',
     galeria:'<rect x="4" y="5" width="24" height="22" rx="4"/><circle cx="12" cy="12" r="3"/><path d="m5 24 8-7 5 4 5-7 5 6"/>',

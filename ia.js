@@ -82,6 +82,7 @@ Verifique se o local é seguro, tente obter resposta e observe a respiração. A
       <div class="ia-options">${buttons.map(o => `<button class="ia-option" data-ia="${o.id}">${safe(o.label)} ↗</button>`).join('')}</div>
       <p class="ia-footer">Transmissão local simulada • Informações de sobrevivência são orientações gerais; não substituem serviços de emergência.</p>`;
   }
+  document.addEventListener('pirate40:reset-session', () => { history = [{from:'bot',text:GREETING}]; persist(); });
   window.renderIA = renderIA;
   if (state.unlocked && state.page === 'ia') render();
   document.getElementById('content').addEventListener('click', event => {

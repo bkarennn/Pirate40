@@ -1,0 +1,9 @@
+Geografia: Natural Earth, Admin 0 – Countries, escala 1:110m.
+Domínio público. Dados simplificados para visualização, sem uso de GPS.
+https://www.naturalearthdata.com/downloads/110m-cultural-vectors/110m-admin-0-countries/
+Fonte GeoJSON: https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson
+
+world-data.js contém os contornos convertidos para coordenadas SVG:
+x = longitude + 180; y = 90 - latitude. Projeção equiretangular.
+Coordenadas arredondadas a duas casas. Fronteiras são referências cartográficas contemporâneas, não uma previsão política para 2091.
+O marcador em 25°S, 170°E representa uma instalação fictícia no Pacífico Sul.
