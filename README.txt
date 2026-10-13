@@ -71,3 +71,14 @@ Contatos e IA exibem “digitando…” antes de responder (1,4 a 3,4 segundos).
 A duração é ajustada por typingDelay() em script.js. A pergunta aparece imediatamente.
 A IA aceita uma pergunta por vez; respostas pendentes sobrevivem à recarga e são
 canceladas no reinício. O grupo de emergência indica quem prepara a próxima fala.
+
+GALERIA E PERSONAGENS
+As fotografias originais de fotos/ são usadas sem renomear nem duplicar arquivos.
+A pasta contém três imagens: cachorro, post-it 00:31 e post-it com girassol.
+photos.js centraliza os caminhos, miniaturas e ampliação compartilhada com o chat.
+Clique numa foto para ampliar; feche pelo X, Escape ou clique fora da janela.
+O grupo CANAL / BASE contém a conversa antiga do cachorro (08/04/2091),
+sem notificações automáticas e sem interferir na sequência da invasão.
+characters.js migra nomes e identificadores antigos para Esther e Kevin,
+preservando escolhas, leituras, respostas pendentes e o prazo da invasão.
+Noah e os demais personagens permanecem inalterados.

@@ -60,10 +60,11 @@ Verifique se o local é seguro, tente obter resposta e observe a respiração. A
   };
   let history;
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY));
+    const saved = migrateCharacterData(JSON.parse(localStorage.getItem(KEY)));
     history = Array.isArray(saved) && saved.every(m => m && typeof m.text === 'string' && ['bot', 'user'].includes(m.from)) ? saved : null;
   } catch { history = null; }
   if (!history || !history.length) history = [{ from: 'bot', text: GREETING }];
+  persist();
   function persist() { try { localStorage.setItem(KEY, JSON.stringify(history)); } catch {} }
   function safe(text) { return String(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function pendingReply() { return history.at(-1)?.pendingReply; }

@@ -4,7 +4,7 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#c7d8ef">
 <title>PIRATE 40 · Seu espaço em 2091</title>
 <link rel="stylesheet" href="style.css"><link rel="stylesheet" href="ia.css"><link rel="stylesheet" href="security.css"><link rel="stylesheet" href="map.css">
-<script src="script.js" defer></script><script src="ia.js" defer></script><script src="world-data.js" defer></script><script src="map.js" defer></script><script src="security.js" defer></script>
+<script src="characters.js" defer></script><script src="photos.js" defer></script><script src="script.js" defer></script><script src="ia.js" defer></script><script src="world-data.js" defer></script><script src="map.js" defer></script><script src="security.js" defer></script>
 </head>
 <body>
 <main class="shell">
@@ -32,4 +32,5 @@
 </section>
 <p class="outside-note"><span class="live-dot"></span> Seu dispositivo. Suas memórias. Seus segredos.</p>
 </main>
+<dialog id="photoViewer" class="photo-viewer" aria-labelledby="photoCaption"><div class="photo-viewer-bar"><span>Galeria · Pirate 40</span><button id="closePhoto" class="icon-button" aria-label="Fechar fotografia">×</button></div><figure><img id="fullPhoto" alt=""><figcaption id="photoCaption"></figcaption></figure><p id="photoError" class="hidden" role="status">Não foi possível carregar esta fotografia.</p></dialog>
 </body></html>

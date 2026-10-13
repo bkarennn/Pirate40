@@ -20,10 +20,12 @@ const initialState = {
   welcomed: false
 };
 let state;
-try { state = { ...structuredClone(initialState), ...JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') }; }
+try { state = { ...structuredClone(initialState), ...migrateCharacterData(JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')) }; }
 catch { state = structuredClone(initialState); }
+// Persist renamed references without changing the save key.
+try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
 const chats = {
-  maya: { name: 'MAYA', status: 'Frequência privada', messages: [
+  esther: { name: 'ESTHER', status: 'Frequência privada', messages: [
     { from: 'other', text: 'Cadê você? Já pegou o nosso protótipo?', time: '03:41' },
     { from: 'other', text: 'Não podemos continuar aqui por muito tempo.', time: '03:42' }
   ], answers: [
@@ -37,10 +39,23 @@ const chats = {
     { text: 'Quem é você?', response: 'Não importa. Encontramos seu sinal.' },
     { text: 'O que você quer?', response: 'Que não se mova.' }
   ] },
-  group: { name: 'CANAL / BASE', status: 'Histórico fragmentado', messages: [
-    { from: 'other', text: '[14 mensagens perdidas]', time: '02:16' },
-    { from: 'other', text: '[Transmissão de áudio irrecuperável]', time: '02:18' },
-    { from: 'other', text: 'Fechem o acesso ao setor inferior.', time: '02:19' }
+  group: { name: 'CANAL / BASE', status: 'Histórico da base · 08–09/04/2091', messages: [
+    {"from":"other","sender":"Kevin","text":"Gente, vocês não vão acreditar no que eu encontrei KKKKK","date":"08/04/2091","time":"18:12"},
+    {"from":"other","sender":"Esther","text":"O quê?","date":"08/04/2091","time":"18:13"},
+    {"from":"other","sender":"Kevin","text":"Um cachorro 😭","date":"08/04/2091","time":"18:14"},
+    {"from":"other","sender":"Noah","text":"Um O QUÊ?","date":"08/04/2091","time":"18:15"},
+    {"from":"other","sender":"Kevin","text":"Ele tava perto de uma das entradas da base. Ficou uivando um tempão, acho que tava perdido.","date":"08/04/2091","time":"18:16"},
+    {"from":"other","sender":"Kevin","text":"Olha ele aqui","date":"08/04/2091","time":"18:17"},
+    {"from":"other","sender":"Kevin","text":"","photoId":"dog","date":"08/04/2091","time":"18:18"},
+    {"from":"other","sender":"Kevin","text":"Posso trazer ele pra dentro? Não dá pra deixar o bichinho lá.","date":"08/04/2091","time":"18:19"},
+    {"from":"other","sender":"Noah","text":"A gente tá escondido numa base clandestina e você quer adotar um cachorro????","date":"08/04/2091","time":"18:20"},
+    {"from":"other","sender":"Esther","text":"Ah, deixa KKKKK coitado 😭","date":"08/04/2091","time":"18:21"},
+    {"from":"other","sender":"Kevin","text":"ELE É MUITO BONZINHO","date":"08/04/2091","time":"18:22"},
+    {"from":"other","sender":"Noah","text":"Tá. Mas você vai cuidar dele.","date":"08/04/2091","time":"18:23"},
+    {"from":"other","sender":"Kevin","text":"FECHOU!!","date":"08/04/2091","time":"18:24"},
+    { from: 'other', text: '[14 mensagens perdidas]', date:'09/04/2091', time: '02:16' },
+    { from: 'other', text: '[Transmissão de áudio irrecuperável]', date:'09/04/2091', time: '02:18' },
+    { from: 'other', text: 'Fechem o acesso ao setor inferior.', date:'09/04/2091', time: '02:19' }
   ], answers: [] }
 };
 function save() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { showToast('Armazenamento indisponível. O progresso desta sessão não será salvo.', 'sistema'); } }
@@ -50,7 +65,7 @@ function activate() {
   if (state.security?.status === 'failed') return;
   scanScreen.classList.add('hidden'); systemScreen.classList.remove('hidden');
   state.unlocked = true; state.page = 'inicio'; state.openChat = null; save(); render();
-  if (!state.welcomed) { state.welcomed = true; notify('Mensagem de Maya', 'Cadê você? Já pegou o nosso protótipo?', 'mensagens'); notify('IA de Sobrevivência', 'Assistência local disponível.', 'ia', false); save(); }
+  if (!state.welcomed) { state.welcomed = true; notify('Mensagem de Esther', 'Cadê você? Já pegou o nosso protótipo?', 'mensagens'); notify('IA de Sobrevivência', 'Assistência local disponível.', 'ia', false); save(); }
 }
 $('#scanButton').addEventListener('click', () => {
   scanScreen.classList.add('scanning');
@@ -59,6 +74,7 @@ $('#scanButton').addEventListener('click', () => {
   setTimeout(() => { btn.textContent = 'Olá, Pirate 40 ✓'; $('#scanDescription').textContent = 'IDENTIDADE RECONHECIDA • PIRATE 40'; setTimeout(activate, 750); }, 1500);
 });
 $('#lockButton').addEventListener('click', () => {
+  closePhoto(false);
   state.unlocked = false; scanScreen.classList.remove('scanning'); $('#notificationPanel').classList.add('hidden'); $('#toastRegion').innerHTML = ''; save(); systemScreen.classList.add('hidden'); scanScreen.classList.remove('hidden');
   $('#scanButton').disabled = false; $('#scanButton').textContent = 'Reconhecer meu rosto →';
   $('#scanDescription').textContent = 'Desbloqueie seu dispositivo para continuar, Pirate 40.';
@@ -129,7 +145,7 @@ function renderMensagens() {
     const messages = [...chat.messages];
     if (sentIdx !== undefined) { const a = chat.answers[sentIdx]; messages.push({from:'mine',text:a.text,time:'03:45'}); if (!state.replyDue[id]) messages.push({from:'other',text:a.response,time:'03:46'}); }
     return `<button class="back" data-back>← VOLTAR AOS CONTATOS</button>${head(escapeHtml(chat.name),escapeHtml(chat.status))}
-    <div class="chat">${messages.map(m=>`<div class="bubble ${m.from==='mine'?'mine':''}">${m.sender ? `<strong class="message-sender">${escapeHtml(m.sender)}</strong>` : ''}${escapeHtml(m.text)}<small>${m.date ? escapeHtml(m.date)+' · ' : ''}${m.time}</small></div>`).join('')}${state.replyDue[id] ? typingIndicator(chat.name) : ''}${id === 'emergency' ? '<div id="emergencyTyping"></div>' : ''}</div>
+    <div class="chat">${messages.map(m=>`<div class="bubble ${m.from==='mine'?'mine':''}">${m.sender ? `<strong class="message-sender">${escapeHtml(m.sender)}</strong>` : ''}${escapeHtml(m.text)}${m.photoId ? photoThumbnail(m.photoId, true) : ''}<small>${m.date ? escapeHtml(m.date)+' · ' : ''}${m.time}</small></div>`).join('')}${state.replyDue[id] ? typingIndicator(chat.name) : ''}${id === 'emergency' ? '<div id="emergencyTyping"></div>' : ''}</div>
     ${sentIdx===undefined && chat.answers.length ? `<p class="muted" style="margin-top:15px">ESCOLHA UMA RESPOSTA:</p><div class="responses">${chat.answers.map((a,i)=>`<button class="secondary" data-reply="${i}">${escapeHtml(a.text)}</button>`).join('')}</div>` : `<p class="muted" style="margin-top:15px">${state.replyDue[id] ? 'Aguardando resposta…' : chat.answers.length ? 'Nenhuma nova resposta disponível.' : 'Canal somente para leitura.'}</p>`}`;
   }
   return `${head('COMUNICAÇÕES','REDE DESCENTRALIZADA')}
@@ -137,8 +153,7 @@ function renderMensagens() {
 }
 function renderMapa() { return renderWorldMap(); }
 function renderGaleria() {
-  const albums = ['Base', 'Equipe', 'Dispositivos', 'Exterior', 'Recuperados'];
-  return `${head('Galeria', 'SUAS MEMÓRIAS')}<div class="gallery-intro"><h3>Um lugar para guardar o mundo.</h3><p class="muted">Suas fotografias vão morar aqui.</p></div><div class="album-grid">${albums.map(name => `<div class="album"><div>${icon('galeria')}</div><strong>${name}</strong><span>0 fotografias</span></div>`).join('')}</div><div class="empty"><strong>Nenhuma fotografia por enquanto</strong><p>Álbuns reservados. As imagens serão adicionadas em uma próxima atualização.</p></div>`;
+  return head('Galeria','SUAS MEMÓRIAS') + '<div class="gallery-intro"><h3>Pequenos pedaços da vida.</h3><p class="muted">' + PHOTO_LIBRARY.length + ' fotografias · toque para ampliar</p></div><div class="photo-grid">' + PHOTO_LIBRARY.map(photo => photoThumbnail(photo.id)).join('') + '</div><div class="gallery-albums"><span>Base</span><span>Registros</span></div>';
 }
 function renderNotas() {
   return `${head('ANOTAÇÕES','ARQUIVO LOCAL')}<div class="panel"><p class="eyebrow">NOVA ANOTAÇÃO</p><input id="noteTitle" class="input" aria-label="Título da nota" placeholder="Título da nota" maxlength="70"/><textarea id="noteBody" aria-label="Conteúdo da nota" placeholder="Escreva aqui..."></textarea><div class="row"><span id="noteFeedback" class="meta">Salvo neste navegador</span><button class="primary" id="saveNote">SALVAR NOTA</button></div></div>
@@ -220,7 +235,7 @@ document.addEventListener('click', e => {
   const wallpaper = e.target.closest('[data-wallpaper]');
   if (wallpaper) { state.wallpaper = wallpaper.dataset.wallpaper; save(); render(); }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('#notificationPanel').classList.add('hidden'); $('#notificationButton').setAttribute('aria-expanded','false'); if (state.unlocked) goHome(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (e.defaultPrevented) return; if ($('#photoViewer').open) { e.preventDefault(); closePhoto(); return; } $('#notificationPanel').classList.add('hidden'); $('#notificationButton').setAttribute('aria-expanded','false'); if (state.unlocked) goHome(); } });
 document.querySelector('.device').dataset.wallpaper = state.wallpaper;
 updateNotifications();
 

@@ -79,6 +79,7 @@ function failSecurity() {
   save(); showSecurityFailure();
 }
 function showSecurityFailure() {
+  closePhoto(false);
   $('#securityFailure').classList.remove('hidden');
   systemScreen.inert = true; scanScreen.inert = true;
   $('#securityFailure').focus();
@@ -119,13 +120,13 @@ const SECURITY_HOME_DELAY_MS = 5000;
 const SECURITY_MESSAGE_INTERVAL_MS = 3500;
 const REQUIRED_SECURITY_ACTIVITIES = ['mensagens','ia','mapa','galeria','notas','seguranca'];
 const INVASION_DIALOGUE = [
- ['Maya','GENTE??? O QUE TÁ ACONTECENDO??'],['Ravi','Tem alguém entrando pela doca!'],
- ['Maya','FECHA AS PORTAS!! AGORA!!'],['Noah','QUEM DEIXOU O SISTEMA DE LOCALIZAÇÃO LIGADO???'],
- ['Ravi','Espera...'],['Ravi','Meu Deus. Foi o Pirate 40.'],
- ['Maya','40, POR FAVOR, FECHA OS SETORES!!'],['Noah','É CULPA DELE! ELE DEIXOU A LOCALIZAÇÃO ATIVA!'],
- ['Maya','DISCUTE ISSO DEPOIS, NOAH! A GENTE VAI MORRER!'],['Sistema','Presença não autorizada detectada no perímetro.']
+ ['Esther','GENTE??? O QUE TÁ ACONTECENDO??'],['Kevin','Tem alguém entrando pela doca!'],
+ ['Esther','FECHA AS PORTAS!! AGORA!!'],['Noah','QUEM DEIXOU O SISTEMA DE LOCALIZAÇÃO LIGADO???'],
+ ['Kevin','Espera...'],['Kevin','Meu Deus. Foi o Pirate 40.'],
+ ['Esther','40, POR FAVOR, FECHA OS SETORES!!'],['Noah','É CULPA DELE! ELE DEIXOU A LOCALIZAÇÃO ATIVA!'],
+ ['Esther','DISCUTE ISSO DEPOIS, NOAH! A GENTE VAI MORRER!'],['Sistema','Presença não autorizada detectada no perímetro.']
 ];
-const AFTERMATH_DIALOGUE = [['Maya','Conseguimos...'],['Ravi','Acho que eles não passaram.'],['Noah','Isso não teria acontecido se alguém tivesse desligado o localizador.'],['Maya','40, a gente precisa conversar.']];
+const AFTERMATH_DIALOGUE = [['Esther','Conseguimos...'],['Kevin','Acho que eles não passaram.'],['Noah','Isso não teria acontecido se alguém tivesse desligado o localizador.'],['Esther','40, a gente precisa conversar.']];
 let lastClosedSector = null;
 const securityAudio = new Audio(SECURITY_AUDIO_SRC);
 securityAudio.loop = true; securityAudio.preload = 'auto'; securityAudio.volume = .65;
