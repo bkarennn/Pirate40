@@ -8,7 +8,10 @@ const STORAGE_KEY = 'pirate40-save-v1';
 
 const initialState = {
   profile: null,
-  gameTime: Date.UTC(2091,3,9,23,0,0),
+  diary: [],
+  clock: null,
+  timeline: null,
+  gameTime: Date.UTC(2091,2,31,23,0,0),
   vitals: {bpm:76,mode:'normal'},
   sentTimes: {},
   unlocked: false,
@@ -44,10 +47,10 @@ const chats = {
     { text: 'Quem é você?', response: 'Não importa. Encontramos seu sinal.' },
     { text: 'O que você quer?', response: 'Que não se mova.' }
   ] },
-  group: { name: 'CANAL / BASE', status: 'Histórico da base · 08–09/04/2091', messages: [
-    { from: 'other', text: '[14 mensagens perdidas]', date:'09/04/2091', time: '02:16' },
-    { from: 'other', text: '[Transmissão de áudio irrecuperável]', date:'09/04/2091', time: '02:18' },
-    { from: 'other', text: 'Fechem o acesso ao setor inferior.', date:'09/04/2091', time: '02:19' }
+  group: { name: 'BASE — GRUPO GERAL', status: 'Histórico da base', messages: [
+    { from: 'other', text: '[14 mensagens perdidas]', date:'31/03/2091', time: '02:16' },
+    { from: 'other', text: '[Transmissão de áudio irrecuperável]', date:'31/03/2091', time: '02:18' },
+    { from: 'other', text: 'Fechem o acesso ao setor inferior.', date:'31/03/2091', time: '02:19' }
   ], answers: [] }
 };
 function save() { if(typeof syncGameTime === 'function') syncGameTime(); try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { showToast('Armazenamento indisponível. O progresso desta sessão não será salvo.', 'sistema'); } }
@@ -57,7 +60,7 @@ function activate() {
   if (!state.profile || state.security?.status === 'failed') return;
   $('#identityScreen').classList.add('hidden');
   scanScreen.classList.add('hidden'); systemScreen.classList.remove('hidden');
-  state.unlocked = true; state.page = 'inicio'; state.openChat = null; save(); render();
+  state.unlocked = true; beginNarrativeAccess(); state.page = 'inicio'; state.openChat = null; save(); render();
   if (!state.welcomed) { state.welcomed = true; notify('Mensagem de Esther', 'Cadê você? Já pegou o nosso protótipo?', 'mensagens'); notify('IA de Sobrevivência', 'Assistência local disponível.', 'ia', false); save(); }
 }
 let scanTimers = [], scanGeneration = 0;
@@ -77,6 +80,7 @@ function beginFaceScan() {
 }
 $('#scanButton').addEventListener('click',beginFaceScan);
 $('#lockButton').addEventListener('click', () => {
+  endNarrativeAccess();
   scanTimers.forEach(clearTimeout);scanGeneration++;
   closePhoto(false);
   state.unlocked = false; scanScreen.classList.remove('scanning'); $('#notificationPanel').classList.add('hidden'); $('#toastRegion').innerHTML = ''; save(); systemScreen.classList.add('hidden'); scanScreen.classList.remove('hidden');
@@ -93,14 +97,14 @@ content.addEventListener('click', e => {
   const pageButton = e.target.closest('[data-go]');
   if (pageButton) { state.page = pageButton.dataset.go; state.openChat = null; save(); render(); return; }
   const chatButton = e.target.closest('[data-chat]');
-  if (chatButton) { state.openChat = chatButton.dataset.chat; if (!state.read.includes(state.openChat)) state.read.push(state.openChat); save(); render(); return; }
+  if (chatButton) { messengerProfile=null; state.openChat = chatButton.dataset.chat; if (!state.read.includes(state.openChat)) state.read.push(state.openChat); save(); render(); return; }
   if (e.target.closest('[data-back]')) { state.openChat = null; save(); render(); return; }
   const response = e.target.closest('[data-reply]');
   if (response && state.openChat) {
     const chatId = state.openChat, idx = Number(response.dataset.reply);
     const answer = chats[chatId].answers[idx];
     if (!answer || state.sent[chatId] !== undefined) return;
-    state.sentTimes[chatId]={mine:gameMessageStamp()}; state.sent[chatId] = idx; state.replyDue[chatId] = Date.now() + typingDelay(answer.response); save(); render();
+    state.sentTimes[chatId]={mine:gameMessageStamp()}; state.sent[chatId] = idx; state.replyDue[chatId] = Date.now() + typingDelay(answer.response); state.sentTimes[chatId].replyAt=state.gameTime+typingDelay(answer.response)*(state.clock?.rate || 1); save(); render();
   }
   if (e.target.id === 'saveNote') {
     const title = $('#noteTitle').value.trim(), body = $('#noteBody').value.trim();
@@ -114,6 +118,7 @@ content.addEventListener('click', e => {
 });
 content.addEventListener('change', e => { if (e.target.id === 'locatorToggle') { state.locator = e.target.checked; save(); render(); notify(state.locator ? 'Localização ativada' : 'Localização desativada', state.locator ? 'Seu dispositivo está transmitindo sua posição.' : 'Emissão de posição suspensa.', 'sistema'); }});
 function render() {
+  if(state.page!=='mensagens') messengerProfile=null;
   if (typeof mapCleanup === 'function') mapCleanup();
   if (typeof trackSecurityActivity === 'function') { if (state.page !== 'ia') trackSecurityActivity(state.page); checkSecurityProgress(); }
   if (state.page === 'mensagens' && state.openChat === 'emergency' && state.security) { state.security.readCount=state.security.messages.length; save(); }
@@ -126,7 +131,7 @@ function render() {
   $('#appTitle').textContent = apps.find(a => a.id === state.page)?.name || '';
   updateNotifications();
   $('#bottomLocation').textContent = state.locator ? 'LOCALIZADOR: EMISSÃO ATIVA' : 'LOCALIZADOR: DESLIGADO';
-  const pages = { inicio: renderInicio, ia: (typeof renderIA === 'function' ? renderIA : renderInicio), mensagens: renderMensagens, mapa: renderMapa, galeria: renderGaleria, notas: renderNotas, arquivos: renderArquivos, sistema: renderSistema, seguranca: renderSecurity, vitals: renderVitals };
+  const pages = { inicio: renderInicio, ia: (typeof renderIA === 'function' ? renderIA : renderInicio), mensagens: renderMensagens, mapa: renderMapa, galeria: renderGaleria, notas: renderNotas, arquivos: renderArquivos, sistema: renderSistema, seguranca: renderSecurity, vitals: renderVitals, calendar: renderCalendar, diario: renderDiary };
   content.innerHTML = pages[state.page]?.() || renderInicio();
   content.scrollTop = 0;
   if(typeof updateSessionUI === 'function')updateSessionUI();
@@ -143,18 +148,18 @@ function renderInicio() {
   <button class="home-reminder" data-go="${unread ? 'mensagens' : 'notas'}"><span class="reminder-dot"></span><span>${unread ? 'Você tem conversas esperando por você.' : 'Algumas coisas merecem ser lembradas.'}</span><span>→</span></button>`;
 }
 function renderMensagens() {
+  if (messengerProfile) return renderMessengerProfile(messengerProfile);
   if (state.openChat) {
     const id = state.openChat, chat = chats[id], sentIdx = state.sent[id];
     if(id === 'group') startDogConversation();
-    const messages = id === 'group' ? [...state.dogStory.messages,...(state.dogStory.completed ? chat.messages : [])] : [...chat.messages];
+    const messages = id === 'group' ? [...chat.messages,...BASE_HISTORY,...state.dogStory.messages] : [...chat.messages];
     if (sentIdx !== undefined) { const a = chat.answers[sentIdx]; messages.push({from:'mine',text:a.text,...(state.sentTimes[id]?.mine || {time:'03:45'})}); if (!state.replyDue[id]) messages.push({from:'other',text:a.response,...(state.sentTimes[id]?.other || {time:'03:46'})}); }
-    return `<button class="back" data-back>← VOLTAR AOS CONTATOS</button>${head(escapeHtml(chat.name),escapeHtml(chat.status))}
-    <div class="chat">${messages.map(m=>`<div class="bubble ${m.from==='mine'?'mine':''}">${m.sender ? `<strong class="message-sender">${escapeHtml(m.sender)}</strong>` : ''}${escapeHtml(dialogueText(m.text))}${m.photoId ? photoThumbnail(m.photoId, true) : ''}<small>${m.date ? escapeHtml(m.date)+' · ' : ''}${m.time}</small></div>`).join('')}${state.replyDue[id] ? typingIndicator(chat.name) : ''}${id === 'group' ? dogTyping() : ''}${id === 'emergency' ? '<div id="emergencyTyping"></div>' : ''}</div>
+    return `<button class="back" data-back>← VOLTAR AOS CONTATOS</button>${messengerHeader(id,chat)}
+    <div class="chat">${!messages.length ? '<p class="empty-history">Nenhuma mensagem disponível neste histórico.</p>' : ''}${messages.map(m=>`<div class="bubble ${m.from==='mine'?'mine':''}">${m.sender ? `<strong class="message-sender">${escapeHtml(m.sender==='Pirate 40' ? playerName()+' · Pirate 40' : m.sender)}</strong>` : ''}${escapeHtml(dialogueText(m.text))}${m.photoId ? photoThumbnail(m.photoId, true) : ''}<small>${m.date ? escapeHtml(m.date)+' · ' : ''}${m.time}</small></div>`).join('')}${state.replyDue[id] ? typingIndicator(chat.name) : ''}${id === 'group' ? dogTyping() : ''}${id === 'emergency' ? '<div id="emergencyTyping"></div>' : ''}</div>
     ${id === 'group' ? dogChoices() : ''}
-    ${sentIdx===undefined && chat.answers.length ? `<p class="muted" style="margin-top:15px">ESCOLHA UMA RESPOSTA:</p><div class="responses">${chat.answers.map((a,i)=>`<button class="secondary" data-reply="${i}">${escapeHtml(a.text)}</button>`).join('')}</div>` : `<p class="muted" style="margin-top:15px">${state.replyDue[id] ? 'Aguardando resposta…' : chat.answers.length ? 'Nenhuma nova resposta disponível.' : id === 'group' ? (state.dogStory.completed ? 'Histórico recuperado.' : 'Conversa da base · 08/04/2091') : 'Canal somente para leitura.'}</p>`}`;
+    ${sentIdx===undefined && chat.answers.length ? `<p class="muted" style="margin-top:15px">ESCOLHA UMA RESPOSTA:</p><div class="responses">${chat.answers.map((a,i)=>`<button class="secondary" data-reply="${i}">${escapeHtml(a.text)}</button>`).join('')}</div>` : `<p class="muted" style="margin-top:15px">${state.replyDue[id] ? 'Aguardando resposta…' : chat.answers.length ? 'Nenhuma nova resposta disponível.' : id === 'group' ? (state.dogStory.completed ? 'Histórico recuperado.' : 'Conversa da base') : 'Canal somente para leitura.'}</p>`}`;
   }
-  return `${head('COMUNICAÇÕES','REDE DESCENTRALIZADA')}
-  <div class="list">${Object.entries(chats).map(([id,chat])=>`<button class="chat-item" data-chat="${id}"><div><strong>${escapeHtml(chat.name)} ${(id==='emergency' ? state.security.messages.length-state.security.readCount : !state.read.includes(id))?'•':''}</strong><p>${escapeHtml(dialogueText(chat.messages.at(-1).text))}</p></div><span class="meta">${chat.messages.at(-1).time} →</span></button>`).join('')}</div>`;
+  return renderMessengerList();
 }
 function renderMapa() { return renderWorldMap(); }
 function renderGaleria() {
@@ -185,14 +190,18 @@ const apps = [
   {id:'ia',name:'IA de Sobrevivência',caption:'Conte comigo'},
   {id:'galeria',name:'Galeria',caption:'Fragmentos do mundo'},
   {id:'mapa',name:'Mapa',caption:'Encontre seu caminho'},
+  {id:'diario',name:'Diário',caption:'Entre dois tempos'},
   {id:'notas',name:'Anotações',caption:'Para não esquecer'},
   {id:'arquivos',name:'Arquivos',caption:'O que ficou guardado'},
   {id:'seguranca',name:'Segurança',caption:'Cuide da base'},
   {id:'vitals',name:'Sinais Vitais',caption:'Do outro lado do tempo'},
+  {id:'calendar',name:'Calendário',caption:'Dias que contam histórias'},
   {id:'sistema',name:'Configurações',caption:'Do seu jeito'}
 ];
 function icon(name) {
   const paths = {
+    diario:'<path d="M5 4h19a3 3 0 0 1 3 3v22H8a3 3 0 0 1-3-3Zm4 0v25M14 10h8m-8 6h8m-8 6h5"/>',
+    calendar:'<rect x="4" y="6" width="24" height="23" rx="4"/><path d="M4 13h24M10 3v6m12-6v6M10 19h3m6 0h3m-12 5h3"/>',
     vitals:'<path d="M16 28S2 19 2 10a7 7 0 0 1 14-3 7 7 0 0 1 14 3c0 9-14 18-14 18Z"/><path d="M4 16h7l3-6 4 12 3-6h7"/>',
     seguranca:'<path d="M16 3 27 7v9c0 7-11 13-11 13S5 23 5 16V7Z"/><path d="m10 16 4 4 8-9"/>',
     mensagens:'<path d="M5 5h22v16H14l-7 5v-5H5z"/><path d="M10 11h12M10 16h8"/>',
@@ -238,7 +247,7 @@ $('#notificationButton').addEventListener('click', () => {
 document.addEventListener('click', e => {
   if (e.target.closest('#closeNotifications')) { $('#notificationPanel').classList.add('hidden'); $('#notificationButton').setAttribute('aria-expanded','false'); }
   const notice = e.target.closest('[data-notification-page]');
-  if (notice && state.unlocked) { state.page = notice.dataset.notificationPage; state.openChat = notice.dataset.notificationChat || null; $('#notificationPanel').classList.add('hidden'); $('#notificationButton').setAttribute('aria-expanded','false'); $('#toastRegion').innerHTML = ''; save(); render(); }
+  if (notice && state.unlocked) { messengerProfile=null; state.page = notice.dataset.notificationPage; state.openChat = notice.dataset.notificationChat || null; $('#notificationPanel').classList.add('hidden'); $('#notificationButton').setAttribute('aria-expanded','false'); $('#toastRegion').innerHTML = ''; save(); render(); }
   const wallpaper = e.target.closest('[data-wallpaper]');
   if (wallpaper) { state.wallpaper = wallpaper.dataset.wallpaper; save(); render(); }
 });
@@ -247,7 +256,7 @@ document.querySelector('.device').dataset.wallpaper = state.wallpaper;
 updateNotifications();
 
 function getUnreadMessageCount() {
- const ordinary=Object.keys(chats).filter(id=>id!=='emergency' && !state.read.includes(id)).length;
+ const ordinary=Object.keys(chats).filter(id=>id!=='emergency' && chats[id].messages.length>0 && !state.read.includes(id)).length;
  return ordinary + (state.security ? Math.max(0,state.security.messages.length-state.security.readCount) : 0);
 }
 function updateMessageBadges() {
@@ -266,7 +275,7 @@ function tickConversations() {
  for (const [id,due] of Object.entries(state.replyDue)) {
    if (Date.now() < due) continue;
    delete state.replyDue[id];
-   state.sentTimes[id] ??= {};state.sentTimes[id].other=gameMessageStamp();
+   state.sentTimes[id] ??= {};const receivedAt=state.sentTimes[id].replyAt ?? state.gameTime;state.sentTimes[id].other=stampAt(receivedAt);recordNarrativeMessage('reply:'+id,receivedAt);
    const reading = state.unlocked && state.page === 'mensagens' && state.openChat === id;
    if (!reading) state.read = state.read.filter(item => item !== id);
    save();
@@ -281,36 +290,34 @@ document.addEventListener('visibilitychange', tickConversations);
 
 // The old base conversation is revealed in place, using the existing chat renderer.
 const DOG_INTRO = [
- ['Kevin','Gente, vocês não vão acreditar no que eu encontrei KKKKK'],['Esther','O quê?'],['Kevin','Um cachorro 😭'],['Noah','Um O QUÊ?'],
+ ['Kevin','Gente, vocês não vão acreditar no que eu encontrei KKKKK'],['Esther','O quê?'],['Kevin','Um cachorro 😭'],['Gustavo','Um O QUÊ?'],
  ['Kevin','Ele tava perto de uma das entradas da base. Ficou uivando um tempão, acho que tava perdido.'],['Kevin','Olha ele aqui'],['Kevin','','dog'],
  ['Kevin','Posso trazer ele pra dentro? Não dá pra deixar o bichinho lá.']
 ];
 const DOG_OPTIONS = ['Por mim pode trazer! 🥹','Acho melhor não, pode ser perigoso.'];
 const DOG_BRANCHES = [
- [['Kevin','EU SABIA QUE PODIA CONTAR COM VOCÊ KKKKK'],['Esther','Mais um integrante pra nossa base 💗'],['Noah','Tá, mas o Kevin vai cuidar dele.'],['Kevin','FECHOU!!']],
- [['Kevin','AH NÃO, 40 😭'],['Esther','Eu entendo a preocupação, mas a gente não pode deixar ele lá sozinho.'],['Noah','Pela primeira vez eu concordo com o 40. Isso pode dar problema.'],['Kevin','Mas ele tá abandonado! Eu prometo cuidar dele.'],['Esther','Eu voto pra ele ficar.'],['Kevin','Então tá decidido KKKKK'],['Noah','Isso não é uma votação justa.']]
+ [['Kevin','EU SABIA QUE PODIA CONTAR COM VOCÊ KKKKK'],['Esther','Mais um integrante pra nossa base 💗'],['Gustavo','Tá, mas o Kevin vai cuidar dele.'],['Kevin','FECHOU!!']],
+ [['Kevin','AH NÃO, 40 😭'],['Esther','Eu entendo a preocupação, mas a gente não pode deixar ele lá sozinho.'],['Gustavo','Pela primeira vez eu concordo com o 40. Isso pode dar problema.'],['Kevin','Mas ele tá abandonado! Eu prometo cuidar dele.'],['Esther','Eu voto pra ele ficar.'],['Kevin','Então tá decidido KKKKK'],['Gustavo','Isso não é uma votação justa.']]
 ];
 function dogSequence() {
  const story=state.dogStory;
  return story.choice===null ? DOG_INTRO : [...DOG_INTRO,['Pirate 40',DOG_OPTIONS[story.choice]],...DOG_BRANCHES[story.choice],['Kevin','PRONTO, ELE JÁ TÁ AQUI!! 🐶'],['Sistema','Novo integrante acolhido na base.']];
 }
-function startDogConversation() {
- const story=state.dogStory;
- if(!story.completed && !story.nextAt && story.messages.length===0){story.nextAt=Date.now()+1800;save();}
-}
+function startDogConversation() { processNarrativeEvents(); }
 function dogTyping() {
  const next=dogSequence()[state.dogStory.messages.length];
- return next && state.dogStory.nextAt ? typingIndicator(next[0]) : '';
+ return next && (state.dogStory.nextAt || (state.timeline?.events?.['dog-found'] && state.dogStory.messages.length<DOG_INTRO.length)) ? typingIndicator(next[0]) : '';
 }
 function dogChoices() {
  const story=state.dogStory;
  if(story.choice!==null || story.messages.length!==DOG_INTRO.length)return '';
  return '<div class="responses" aria-label="Sua resposta a Kevin">'+DOG_OPTIONS.map((text,i)=>'<button class="secondary" data-dog-choice="'+i+'">'+escapeHtml(text)+'</button>').join('')+'</div>';
 }
-function addDogMessage(entry) {
+function addDogMessage(entry, at = getGameDate().getTime()) {
  const story=state.dogStory;
- story.messages.push({from:entry[0]==='Pirate 40'?'mine':'other',sender:entry[0],text:entry[1],...(entry[2]?{photoId:entry[2]}:{}),date:'08/04/2091',time:'18:'+String(12+story.messages.length).padStart(2,'0')});
+ story.messages.push({from:entry[0]==='Pirate 40'?'mine':'other',sender:entry[0],text:entry[1],...(entry[2]?{photoId:entry[2]}:{}),...stampAt(at),receivedAt:at});
  if(entry[2]==='dog')story.photoUnlocked=true;
+ if(entry[0]!=='Pirate 40')recordNarrativeMessage('dog:'+story.messages.length,at);
 }
 function refreshDogChat() {
  if(state.unlocked && state.page==='mensagens' && state.openChat==='group'){
@@ -319,6 +326,7 @@ function refreshDogChat() {
 }
 function tickDogConversation() {
  const story=state.dogStory;
+ if(!state.timeline?.events?.['dog-found'])return;
  // Pause outside the historical conversation and during an invasion; never catch up in a burst.
  if(!state.unlocked || state.page!=='mensagens' || state.openChat!=='group' || document.hidden || ['active','failed'].includes(state.security?.status))return;
  if(story.completed || !story.nextAt || Date.now()<story.nextAt)return;
@@ -332,7 +340,7 @@ function tickDogConversation() {
 content.addEventListener('click',event=>{
  const button=event.target.closest('[data-dog-choice]');if(!button)return;
  const story=state.dogStory,choice=Number(button.dataset.dogChoice);
- if(!state.unlocked || state.openChat!=='group' || story.choice!==null || story.messages.length!==DOG_INTRO.length || ![0,1].includes(choice))return;
+ if(!state.timeline?.events?.['dog-found'] || !state.unlocked || state.openChat!=='group' || story.choice!==null || story.messages.length!==DOG_INTRO.length || ![0,1].includes(choice))return;
  story.choice=choice;addDogMessage(['Pirate 40',DOG_OPTIONS[choice]]);
  story.nextAt=Date.now()+typingDelay(DOG_BRANCHES[choice][0][1]);save();refreshDogChat();
 });

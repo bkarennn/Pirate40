@@ -17,7 +17,7 @@ function securityRemaining() { return Math.max(0, Math.ceil((state.security.dead
 function securityTime() { const seconds = securityRemaining(); return String(Math.floor(seconds / 60)).padStart(2,'0') + ':' + String(seconds % 60).padStart(2,'0'); }
 function startSecurityAlarm() {
   if (state.security.status !== 'idle' || state.security.triggered) return false;
-  state.security = {...freshSecurity(),explored:state.security.explored,triggered:true,status:'active',startedAt:Date.now(),deadline:Date.now() + SECURITY_ALARM_SECONDS * 1000};
+  state.security = {...freshSecurity(),explored:state.security.explored,triggered:true,status:'active',startedGameTime:getGameDate().getTime(),startedAt:Date.now(),deadline:Date.now() + SECURITY_ALARM_SECONDS * 1000};
   playSecurityAudio();
   const device = document.querySelector('.device'); device.classList.remove('invasion-shake'); void device.offsetWidth; device.classList.add('invasion-shake');
   save();
@@ -90,8 +90,8 @@ function restartAfterSecurityFailure() {
   stopSecurityAlarm(); lastClosedSector = null; soundMuted = false;
   delete chats.emergency;
   // Preserve player-authored notes and wallpaper; reset narrative session progress.
-  const notes = state.notes, wallpaper = state.wallpaper, profile = state.profile, gameTime = state.gameTime;
-  state = {...structuredClone(initialState),notes,wallpaper,profile,gameTime,security:freshSecurity()};
+  const diary = state.diary, notes = state.notes, wallpaper = state.wallpaper, profile = state.profile, gameTime = state.gameTime, clock = state.clock, timeline = state.timeline, dogStory = state.dogStory, vitals = state.vitals;
+  state = {...structuredClone(initialState),diary,notes,wallpaper,profile,gameTime,clock,timeline,dogStory,vitals,security:freshSecurity()};
   document.dispatchEvent(new Event('pirate40:reset-session'));
   save();
   $('#securityFailure').classList.add('hidden');
@@ -121,12 +121,12 @@ const SECURITY_MESSAGE_INTERVAL_MS = 3500;
 const REQUIRED_SECURITY_ACTIVITIES = ['mensagens','ia','mapa','galeria','notas','seguranca'];
 const INVASION_DIALOGUE = [
  ['Esther','GENTE??? O QUE TÁ ACONTECENDO??'],['Kevin','Tem alguém entrando pela doca!'],
- ['Esther','FECHA AS PORTAS!! AGORA!!'],['Noah','QUEM DEIXOU O SISTEMA DE LOCALIZAÇÃO LIGADO???'],
+ ['Esther','FECHA AS PORTAS!! AGORA!!'],['Gustavo','QUEM DEIXOU O SISTEMA DE LOCALIZAÇÃO LIGADO???'],
  ['Kevin','Espera...'],['Kevin','Meu Deus. Foi o Pirate 40.'],
- ['Esther','{player}, POR FAVOR, FECHA OS SETORES!!'],['Noah','É CULPA DE {player}! {subject} DEIXOU A LOCALIZAÇÃO ATIVA!'],
+ ['Esther','{player}, POR FAVOR, FECHA OS SETORES!!'],['Gustavo','É CULPA DE {player}! {subject} DEIXOU A LOCALIZAÇÃO ATIVA!'],
  ['Esther','DISCUTE ISSO DEPOIS, NOAH! A GENTE VAI MORRER!'],['Sistema','Presença não autorizada detectada no perímetro.']
 ];
-const AFTERMATH_DIALOGUE = [['Esther','Conseguimos...'],['Kevin','Acho que eles não passaram.'],['Noah','Isso não teria acontecido se alguém tivesse desligado o localizador.'],['Esther','40, a gente precisa conversar.']];
+const AFTERMATH_DIALOGUE = [['Esther','Conseguimos...'],['Kevin','Acho que eles não passaram.'],['Gustavo','Isso não teria acontecido se alguém tivesse desligado o localizador.'],['Esther','40, a gente precisa conversar.']];
 let lastClosedSector = null;
 const securityAudio = new Audio(SECURITY_AUDIO_SRC);
 securityAudio.loop = true; securityAudio.preload = 'auto'; securityAudio.volume = .65;
@@ -175,7 +175,10 @@ function syncEmergencyChat() {
 }
 function sendEmergencyMessage(sender,text,index,phase='invasion') {
  const id=phase+'-'+index;if(state.security.messages.some(m=>m.id===id))return;
- state.security.messages.push({id,from:'other',sender,text,...gameMessageStamp()});
+ const originGame=phase==='invasion'?state.security.startedGameTime:state.security.finishedGameTime;
+ const receivedAt=originGame===undefined?getGameDate().getTime():originGame+(index+1)*SECURITY_MESSAGE_INTERVAL_MS*(state.clock?.rate || 1);
+ state.security.messages.push({id,from:'other',sender,text,...stampAt(receivedAt)});
+ recordNarrativeMessage('emergency:'+state.security.startedAt+':'+id,receivedAt);
  syncEmergencyChat();
  const reading=state.unlocked && state.page==='mensagens' && state.openChat==='emergency';
  if(reading)state.security.readCount=state.security.messages.length;
@@ -191,7 +194,7 @@ function deliverEmergencyMessages() {
 }
 function finishSecurityEvent() {
  if(state.security.status!=='active')return;
- stopSecurityAlarm();state.security.status='contained';state.security.finishedAt=Date.now();state.security.homeDue=0;
+ stopSecurityAlarm();state.security.status='contained';state.security.finishedAt=Date.now();state.security.finishedGameTime=getGameDate().getTime();state.security.homeDue=0;
  save();notify('CONTENÇÃO CONCLUÍDA','Todos os setores foram trancados. A base está segura.','seguranca');
 }
 function failSecurityEvent(){failSecurity();}

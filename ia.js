@@ -4,6 +4,8 @@
   const KEY = 'pirate40-ia-v1';
   const GREETING = 'Bem-vindo ou bem-vinda ao apocalipse. Precisa de assistência?';
   const options = [
+    {id:'away',label:'O que aconteceu enquanto estive fora?'},
+    {id:'recent',label:'O que aconteceu recentemente?'},
     { id: 'apocalipse', label: 'Como assim apocalipse?' },
     { id: 'algas', label: 'Algas comestíveis' },
     { id: 'defesa', label: 'Armas e ferramentas de sobrevivência' },
@@ -103,9 +105,9 @@ Verifique se o local é seguro, tente obter resposta e observe a respiração. A
     if (!button || pendingReply()) return;
     const id = button.dataset.ia;
     const option = [...options, {id:'medSangue',label:'Sangramento'}, {id:'medQueimadura',label:'Queimadura'}, {id:'medDesmaio',label:'Pessoa inconsciente'}].find(o => o.id === id);
-    if (!option || !answers[id]) return;
+    if (!option || (!answers[id] && !['away','recent'].includes(id))) return;
     trackSecurityActivity('ia');
-    const reply = answers[id].replace('{locator}', state.locator ? 'ATIVO' : 'DESLIGADO');
+    const reply = ['away','recent'].includes(id) ? narrativeSummary(id) : id==='base' ? 'Última posição registrada: '+currentNarrativePosition().label+'. Consulte o Mapa para visualizar o percurso e os registros disponíveis.' : answers[id].replace('{locator}', state.locator ? 'ATIVO' : 'DESLIGADO');
     history.push({ from: 'user', text: option.label, ...gameMessageStamp(), pendingReply:{text:reply,due:Date.now()+typingDelay(reply)} });
     persist(); render();
     const log = document.getElementById('iaLog'); if (log) log.scrollTop = log.scrollHeight;

@@ -35,149 +35,79 @@ function boot(storage = new Map(), now = 1000000, newGame = false) {
     document:{querySelector:el,querySelectorAll:()=>[],getElementById:id=>el('#'+id),addEventListener:(t,f)=>el('document').addEventListener(t,f),dispatchEvent:e=>fire('document',e.type)},
     location:{reload(){}},addEventListener:(t,f)=>el('window').addEventListener(t,f)});
   context.window=context;
-  for(const file of ['characters.js','photos.js','script.js','ia.js','world-data.js','map.js','session.js','security.js']) new vm.Script(fs.readFileSync(path.join(root,file),'utf8'),{filename:file}).runInContext(context);
+  for(const file of ['characters.js','photos.js','script.js','personal.js','ia.js','world-data.js','map.js','timeline.js','session.js','security.js']) new vm.Script(fs.readFileSync(path.join(root,file),'utf8'),{filename:file}).runInContext(context);
   return {el,fire,clock,storage,audioControl,timeouts,run:code=>vm.runInContext(code,context)};
 }
-const g=boot();
-assert.equal(g.run('state.unlocked'),false);
-g.run('activate()');
-assert.equal(g.run('apps.length'),9);
-g.run('apps.forEach(a=>{state.page=a.id;render();if(!content.innerHTML)throw Error(a.id);})');
-assert.equal(g.run('startSecurityAlarm()'),true);
-assert.equal(g.run('securityRemaining()'),90);
-assert.equal(g.run('startSecurityAlarm()'),false);
-g.run('closeSecuritySector("a");closeSecuritySector("a");closeSecuritySector("invalid")');
-assert.equal(g.run('state.security.closed.length'),1);
-g.clock.now+=20000;g.run('goHome();securityTick()');assert.equal(g.run('securityRemaining()'),70);
-const resumed=boot(g.storage,g.clock.now);assert.equal(resumed.run('securityRemaining()'),70);assert.equal(resumed.run('state.security.closed.length'),1);
-resumed.run('activate();SECURITY_SECTORS.forEach(s=>closeSecuritySector(s.id))');assert.equal(resumed.run('state.security.status'),'contained');
-resumed.clock.now+=100000;resumed.run('securityTick()');assert.equal(resumed.run('state.security.status'),'contained');
-resumed.run('restartAfterSecurityFailure();activate()');
-resumed.run('state.notes.push({id:9,title:"Keep",body:"Personal note",date:"2091"});state.sent.esther=0;state.wallpaper="tide";startSecurityAlarm();closeSecuritySector("a")');
-resumed.clock.now+=90000;resumed.run('closeSecuritySector("b")');assert.equal(resumed.run('state.security.status'),'failed');assert.equal(resumed.run('state.security.closed.length'),1);
-assert.equal(resumed.el('#securityFailure').classList.contains('hidden'),false);
-resumed.clock.now+=4500;resumed.run('securityTick()');assert.equal(resumed.run('state.unlocked'),false);assert.equal(resumed.run('state.security.status'),'idle');assert.equal(resumed.run('state.notes.at(-1).title'),'Keep');assert.equal(resumed.run('state.wallpaper'),'tide');assert.equal(resumed.run('Object.keys(state.sent).length'),0);
-resumed.run('activate();startSecurityAlarm()');resumed.clock.now+=61000;resumed.run('securityTick();securityTick()');assert.equal(resumed.run('state.notifications.filter(n=>n.title==="Integridade da base em risco").length'),1);
-const expired=boot(resumed.storage,resumed.clock.now+40000);assert.equal(expired.run('state.security.status'),'failed');
-// A fresh save must not share mutable defaults with the reset template.
-const fresh=boot();fresh.run('activate();state.sent.esther=0;state.read.push("esther");startSecurityAlarm()');fresh.clock.now+=90000;fresh.run('securityTick()');fresh.clock.now+=4500;fresh.run('securityTick()');assert.equal(fresh.run('Object.keys(state.sent).length'),0);assert.equal(fresh.run('state.read.length'),0);assert.equal(fresh.run('state.notifications.length'),0);
-// Map geometry, wiring, bounded zoom, recenter and drag.
-const m=boot();m.run('activate();state.page="mapa";render()');assert.ok(m.el('#content').innerHTML.includes('worldMap'));assert.equal(m.run('WORLD_COUNTRIES.length'),177);assert.ok(m.run('WORLD_COUNTRIES.some(c=>c.name.includes("Austr"))'));
-for(let i=0;i<30;i++)m.fire('[data-map-action="in"]','click');assert.equal(m.run('mapView.zoom'),8);
-for(let i=0;i<30;i++)m.fire('[data-map-action="out"]','click');assert.equal(m.run('mapView.zoom'),1);
-m.fire('[data-map-action="center"]','click');assert.equal(m.run('mapView.x'),350);assert.equal(m.run('mapView.y'),115);
-m.fire('#worldMap','pointerdown',{button:0,pointerId:1,clientX:200,clientY:200});m.fire('#worldMap','pointermove',{pointerId:1,clientX:250,clientY:210});assert.ok(m.run('mapView.x')<350);m.fire('#worldMap','pointercancel',{pointerId:1});
-m.run('state.locator=false;render()');assert.ok(m.el('#content').innerHTML.includes('Última posição conhecida'));
-// Existing conversation, IA, notes and local save remain usable.
-m.run('state.page="mensagens";state.openChat="esther";render()');m.fire('#content','click',{closest:s=>s==='[data-reply]'?{dataset:{reply:'0'}}:null});assert.ok(m.el('#content').innerHTML.includes('está digitando'));assert.ok(!m.el('#content').innerHTML.includes('Para de brincar.'));m.clock.now+=4000;m.run('tickConversations()');assert.ok(m.el('#content').innerHTML.includes('Para de brincar.'));
-m.run('state.page="ia";render()');m.fire('#content','click',{closest:s=>s==='[data-ia]'?{dataset:{ia:'sinal'}}:null});assert.ok(m.el('#content').innerHTML.includes('está digitando'));m.clock.now+=4000;m.run('tickConversations()');assert.ok(m.el('#content').innerHTML.includes('DESLIGADO'));
-m.run('state.page="notas";render()');m.el('#noteTitle').value='<nota>';m.el('#noteBody').value='Texto salvo';m.fire('#content','click',{id:'saveNote'});assert.ok(m.el('#content').innerHTML.includes('&lt;nota&gt;'));assert.equal(JSON.parse(m.storage.get('pirate40-save-v1')).notes[0].body,'Texto salvo');
-console.log('PASS: 9 apps; alarm start, duplicate guard, manual doors, deadline, reload, victory, failure, auto-reset, warnings; geography, zoom, pan, recenter; messages, IA, notes and persistence.');
 
-// Narrative gates, ordered delivery, persistent read state and audio lifecycle.
-globalThis.testDone=(async()=>{
- const n=boot();assert.equal(n.audioControl.plays,0);assert.equal(n.audioControl.instances.length,1);
- const audio=n.audioControl.instances[0];assert.ok(decodeURIComponent(audio.src).endsWith('अलार्मmp3.mp3'));assert.equal(audio.loop,true);
- n.run('activate()');n.clock.now+=100000;n.run('securityTick()');assert.equal(n.run('state.security.status'),'idle');
- n.run('["mensagens","mapa","galeria","notas","seguranca","ia"].forEach(page=>{state.page=page;render()});goHome()');
- n.clock.now+=6000;n.run('securityTick()');assert.equal(n.run('state.security.status'),'idle'); // Opening IA alone is not a conversation.
- n.run('state.page="ia";render()');n.fire('#content','click',{closest:s=>s==='[data-ia]'?{dataset:{ia:'base'}}:null});n.run('goHome()');
- n.clock.now+=4000;n.run('securityTick()');assert.equal(n.run('state.security.status'),'idle');
- n.run('state.page="mapa";render()');n.clock.now+=6000;n.run('securityTick()');assert.equal(n.run('state.security.status'),'idle');
- n.run('goHome()');n.clock.now+=5000;n.run('securityTick()');await Promise.resolve();
- assert.equal(n.run('state.security.status'),'active');assert.equal(n.run('securityRemaining()'),90);assert.equal(audio.paused,false);
- n.run('playSecurityAudio();playSecurityAudio()');assert.equal(n.audioControl.instances.length,1);assert.equal(n.audioControl.plays,1);
- n.run('apps.forEach(a=>{state.page=a.id;render();if(!content.innerHTML)throw Error(a.id);})');
- n.run('state.page="notas";render()');n.el('#noteBody').value='Rascunho que não pode sumir';
- n.clock.now+=3500;n.run('securityTick()');assert.equal(n.run('state.security.messages.length'),1);assert.equal(n.el('#noteBody').value,'Rascunho que não pode sumir');assert.equal(n.run('state.page'),'notas');
- assert.equal(n.run('state.security.messages[0].sender'),'Esther');assert.equal(n.run('state.security.messages[0].date'),'09/04/2091');
- n.clock.now+=3500;n.run('securityTick()');assert.equal(n.run('state.security.messages[1].sender'),'Kevin');
- const r=boot(n.storage,n.clock.now);await Promise.resolve();r.run('activate()');assert.equal(r.run('state.security.messages.length'),2);
- r.clock.now+=28000;r.run('securityTick();securityTick()');assert.equal(r.run('state.security.messages.length'),10);
- assert.equal(r.run('state.security.messages.map(m=>m.text).join("|")'),r.run('INVASION_DIALOGUE.map(m=>m[1]).join("|")'));
- assert.equal(r.run('getUnreadMessageCount()'),13);r.run('state.page="mensagens";state.openChat="emergency";render()');assert.equal(r.run('getUnreadMessageCount()'),3);
- r.run('state.page="seguranca";render();SECURITY_SECTORS.forEach(s=>closeSecuritySector(s.id))');assert.equal(r.audioControl.instances[0].paused,true);assert.equal(r.run('state.security.status'),'contained');
- r.clock.now+=14000;r.run('securityTick();securityTick()');assert.equal(r.run('state.security.messages.length'),14);assert.equal(r.run('state.security.messages.at(-1).text'),'40, a gente precisa conversar.');assert.equal(r.run('startSecurityAlarm()'),false);
- const won=boot(r.storage,r.clock.now);assert.equal(won.run('state.security.messages.length'),14);won.run('activate();goHome()');won.clock.now+=100000;won.run('securityTick()');assert.equal(won.run('state.security.status'),'contained');assert.equal(won.audioControl.plays,0);
- const blocked=boot();blocked.audioControl.blocked=true;blocked.run('activate();startSecurityAlarm()');for(let flush=0;flush<10;flush++)await Promise.resolve();
- assert.equal(blocked.run('audioBlocked'),true);assert.equal(blocked.el('#securitySound').textContent,'Ativar som do alarme');assert.equal(blocked.run('state.security.status'),'active');
- blocked.audioControl.blocked=false;blocked.fire('#securitySound','click');await Promise.resolve();assert.equal(blocked.audioControl.instances[0].paused,false);
- blocked.clock.now+=90000;blocked.run('securityTick()');assert.equal(blocked.audioControl.instances[0].paused,true);assert.equal(blocked.run('state.security.status'),'failed');
- blocked.clock.now+=4500;blocked.run('securityTick()');assert.equal(blocked.run('state.security.messages.length'),0);assert.equal(blocked.run('state.security.explored.length'),0);assert.equal(blocked.run('state.security.triggered'),false);assert.equal(blocked.run('state.unlocked'),false);assert.equal(blocked.run('chats.emergency'),undefined);
- const fast=boot();fast.run('activate();startSecurityAlarm();SECURITY_SECTORS.forEach(s=>closeSecuritySector(s.id))');await Promise.resolve();assert.equal(fast.audioControl.instances[0].paused,true);fast.clock.now+=15000;fast.run('securityTick()');assert.equal(fast.run('state.security.messages.length'),4);assert.equal(fast.run('state.security.messages[0].text'),'Conseguimos...');
- const post=boot();post.run('activate();startSecurityAlarm();SECURITY_SECTORS.forEach(s=>closeSecuritySector(s.id))');post.clock.now+=3500;post.run('securityTick()');const postReload=boot(post.storage,post.clock.now);postReload.clock.now+=11000;postReload.run('securityTick();securityTick()');assert.equal(postReload.run('state.security.messages.length'),4);
- const prime=boot();await prime.run('prepareSecurityAudio()');assert.equal(prime.audioControl.instances[0].paused,true);assert.equal(prime.run('audioPending'),false);assert.equal(prime.run('state.security.status'),'idle');
- console.log('PASS: exploration gates, delayed home trigger, one event per match, original MP3, singleton loop, blocked autoplay/retry, ordered messages, read counters, reload, victory aftermath, quick victory, failure audio stop and clean restart.');
-})();
-
-const typing=boot();typing.run('activate();state.page="ia";render()');
-const ask=()=>typing.fire('#content','click',{closest:s=>s==='[data-ia]'?{dataset:{ia:'base'}}:null});ask();ask();
-assert.equal(JSON.parse(typing.storage.get('pirate40-ia-v1')).length,2);
-const typingReload=boot(typing.storage,typing.clock.now);typingReload.run('activate();state.page="ia";render()');assert.ok(typingReload.el('#content').innerHTML.includes('está digitando'));
-typingReload.clock.now+=4000;typingReload.run('state.page="notas";render();tickConversations()');assert.equal(typingReload.run('state.page'),'notas');assert.equal(JSON.parse(typingReload.storage.get('pirate40-ia-v1')).length,3);
-typing.run('restartAfterSecurityFailure()');typing.clock.now+=4000;typing.run('tickConversations()');assert.equal(JSON.parse(typing.storage.get('pirate40-ia-v1')).length,1);
-const contact=boot();contact.run('activate();state.page="mensagens";state.openChat="esther";render()');contact.fire('#content','click',{closest:s=>s==='[data-reply]'?{dataset:{reply:'0'}}:null});
-const contactReload=boot(contact.storage,contact.clock.now);contactReload.clock.now+=4000;contactReload.run('tickConversations();activate();state.page="mensagens";state.openChat="esther";render()');assert.ok(contactReload.el('#content').innerHTML.includes('Para de brincar.'));assert.ok(!contactReload.el('#content').innerHTML.includes('está digitando'));
-console.log('PASS: typing delay, single pending IA reply, pending replies survive reload, reset cancels replies, background delivery keeps current app.');
-
-// Renaming is compatible with old keys, pending replies and an ongoing invasion.
-const legacyStore=new Map();
-legacyStore.set('pirate40-save-v1',JSON.stringify({openChat:'maya',read:['maya'],sent:{maya:0},replyDue:{maya:1003000},notes:[{id:1,title:'Maya e Ravi',body:'Falar com Maya e Ravi.',date:'2091'}],notifications:[{title:'Mensagem de Maya',body:'Ravi chegou.',chatId:'maya'}],security:{status:'active',closed:['a'],deadline:1090000,startedAt:1000000,messages:[{id:'invasion-0',from:'other',sender:'Maya',text:'Ravi, vem!',time:'03:45:03'}],messageIndex:1,readCount:1}}));
-legacyStore.set('pirate40-ia-v1',JSON.stringify([{from:'bot',text:'Maya e Ravi'}]));
-const migrated=boot(legacyStore);
-assert.equal(migrated.run('state.openChat'),'esther');assert.equal(migrated.run('state.sent.esther'),0);assert.equal(migrated.run('state.sent.maya'),undefined);assert.equal(migrated.run('state.replyDue.esther'),1003000);assert.equal(migrated.run('state.read[0]'),'esther');assert.equal(migrated.run('state.security.deadline'),1090000);assert.equal(migrated.run('state.security.messages[0].sender'),'Esther');assert.equal(migrated.run('state.security.messages[0].text'),'Kevin, vem!');assert.equal(migrated.run('state.security.readCount'),1);assert.equal(migrated.run('state.notifications[0].chatId'),'esther');assert.equal(JSON.parse(legacyStore.get('pirate40-ia-v1'))[0].text,'Esther e Kevin');
-assert.equal(migrated.run('JSON.stringify(migrateCharacterData(state))'),migrated.run('JSON.stringify(migrateCharacterData(migrateCharacterData(state)))'));
-assert.equal(migrated.run('migrateCharacterData({sent:{maya:0,esther:2}}).sent.esther'),2);
-const gallery=boot();gallery.run('activate();state.page="galeria";render()');
-for(const photo of gallery.run('availablePhotos()')) {
- assert.ok(fs.existsSync(path.join(root,'fotos',photo.file)));
- assert.ok(gallery.el('#content').innerHTML.includes(encodeURIComponent(photo.file)));
- gallery.run('openPhoto('+JSON.stringify(photo.id)+')');assert.equal(gallery.el('#photoViewer').open,true);assert.equal(gallery.el('#fullPhoto').src,'fotos/'+encodeURIComponent(photo.file));gallery.fire('#closePhoto','click');assert.equal(gallery.el('#photoViewer').open,false);
+function minutes(g,n){g.clock.now+=n*60000;g.run('syncGameTime();processNarrativeEvents()');}
+function pick(g,choice){g.fire('#content','click',{closest:s=>s==='[data-dog-choice]'?{dataset:{dogChoice:String(choice)}}:null});}
+const fresh=boot(new Map(),1000000,true);
+assert.equal(fresh.run('getGameDate().toISOString()'),'2091-03-31T23:00:00.000Z');fresh.clock.now+=3600000;assert.equal(fresh.run('getGameDate().toISOString()'),'2091-03-31T23:00:00.000Z');fresh.run('activate()');assert.equal(fresh.run('state.unlocked'),false);
+fresh.el('#playerName').value='Alex';fresh.el('#playerPronouns').value='neutral';fresh.fire('#identityForm','submit');assert.equal(fresh.run('state.profile.name'),'Alex');assert.equal(fresh.run('state.unlocked'),false);fresh.timeouts[0]();fresh.timeouts.at(-1)();assert.equal(fresh.run('state.unlocked'),true);
+const g=boot();g.run('activate()');assert.equal(g.run('apps.length'),11);g.run('apps.forEach(a=>{state.page=a.id;render();if(!content.innerHTML)throw Error(a.id);})');
+assert.equal(g.run('getGameDate().toISOString()'),'2091-03-31T23:00:00.000Z');g.run('state.page="mensagens";state.openChat="group";render()');assert.equal(g.run('state.dogStory.messages.length'),0);assert.ok(!g.run('availablePhotos().some(p=>p.id==="dog")'));
+minutes(g,60);assert.equal(g.run('getGameDate().toISOString()'),'2091-04-01T00:00:00.000Z');assert.equal(g.run('state.dogStory.messages.length'),0);
+minutes(g,31);assert.equal(g.run('state.dogStory.messages.length'),1);assert.equal(g.run('state.dogStory.messages[0].time'),'00:31:00');assert.equal(g.run('state.dogStory.photoUnlocked'),false);
+g.clock.now+=25000;g.run('processNarrativeEvents()');assert.equal(g.run('state.dogStory.messages.length'),8);assert.equal(g.run('state.dogStory.photoUnlocked'),true);assert.equal(g.run('state.dogStory.choice'),null);
+const before=JSON.stringify(JSON.parse(g.storage.get('pirate40-save-v1')).timeline.events);g.run('processNarrativeEvents();processNarrativeEvents()');assert.equal(JSON.stringify(JSON.parse(g.storage.get('pirate40-save-v1')).timeline.events),before);
+g.run('state.page="mensagens";state.openChat="group";render()');assert.ok(g.el('#content').innerHTML.includes('data-dog-choice="0"'));
+for(const choice of [0,1]){
+ const dog=boot();dog.run('activate();advanceGameTime(92);state.page="mensagens";state.openChat="group";render()');pick(dog,choice);pick(dog,1-choice);assert.equal(dog.run('state.dogStory.choice'),choice);
+ const resumed=boot(dog.storage,dog.clock.now+1000);resumed.run('activate();state.page="mensagens";state.openChat="group";render()');for(let i=0;i<12;i++){resumed.clock.now+=4000;resumed.run('tickConversations()');}
+ assert.equal(resumed.run('state.dogStory.completed'),true);assert.equal(resumed.run('state.dogStory.messages.at(-2).text'),'PRONTO, ELE JÁ TÁ AQUI!! 🐶');assert.equal(resumed.run('state.dogStory.messages.filter(m=>m.photoId==="dog").length'),1);
 }
-gallery.run('state.page="mensagens";state.openChat="group";render()');for(let i=0;i<8;i++){gallery.clock.now+=4000;gallery.run('tickConversations()');}gallery.fire('#content','click',{closest:s=>s==='[data-dog-choice]'?{dataset:{dogChoice:'0'}}:null});for(let i=0;i<6;i++){gallery.clock.now+=4000;gallery.run('tickConversations()');}assert.ok(gallery.el('#content').innerHTML.includes('data-photo="dog"'));assert.ok(gallery.el('#content').innerHTML.includes('08/04/2091'));assert.ok(gallery.el('#content').innerHTML.includes('FECHOU!!'));
-assert.equal(gallery.run('state.dogStory.messages.filter(m=>m.photoId==="dog").length'),1);assert.equal(gallery.run('state.security.messages.length'),0);
-gallery.run('openPhoto("dog")');gallery.fire('document','keydown',{key:'Escape'});assert.equal(gallery.el('#photoViewer').open,false);assert.equal(gallery.run('state.openChat'),'group');
-gallery.run('openPhoto("dog");startSecurityAlarm()');gallery.clock.now+=90000;gallery.run('securityTick()');assert.equal(gallery.el('#photoViewer').open,false);assert.equal(gallery.run('state.security.status'),'failed');
-const galleryReload=boot(gallery.storage,gallery.clock.now);assert.equal(galleryReload.run('state.dogStory.messages.filter(m=>m.photoId==="dog").length'),1);
-console.log('PASS: legacy name migration, saved replies/deadline/read state, photo paths, shared viewer, Escape, failure close, old dog conversation and no duplication after reload.');
+const bio=boot();bio.run('activate();advanceGameTime(109)');assert.equal(bio.run('state.vitals.bpm'),150);assert.equal(bio.run('state.vitals.mode'),'running');bio.run('advanceGameTime(1)');assert.equal(bio.run('state.vitals.bpm'),72);assert.equal(bio.run('state.vitals.mode'),'interrupted');assert.equal(bio.run('Object.values(state.timeline.events).filter(e=>e.type==="vitals").length'),2);
+bio.run('state.page="vitals";render()');assert.ok(bio.el('#content').innerHTML.includes('150 BPM'));assert.ok(bio.el('#content').innerHTML.includes('72 BPM'));
+// Offline catch-up uses saved wall-clock anchor, without ticking any intervals.
+const away=boot();away.run('activate();advanceGameTime(100);endNarrativeAccess();save()');const savedAt=away.clock.now;
+const six=boot(new Map(away.storage),savedAt+320*60000);assert.equal(six.run('getGameDate().toISOString()'),'2091-04-01T06:00:00.000Z');assert.equal(six.run('currentNarrativePosition().stage'),'transit');const x=six.run('currentNarrativePosition().x');assert.ok(x<350&&x>182.35);assert.equal(six.run('state.dogStory.choice'),null);assert.equal(six.run('state.dogStory.messages.length'),8);
+const late=boot(new Map(away.storage),savedAt+620*60000);assert.equal(late.run('getGameDate().toISOString()'),'2091-04-01T11:00:00.000Z');assert.equal(late.run('currentNarrativePosition().stage'),'france');assert.equal(late.run('currentNarrativePosition().x'),182.35);assert.equal(late.run('currentNarrativePosition().y'),41.14);assert.equal(late.run('Object.keys(state.timeline.events).length'),6);assert.equal(late.run('state.timeline.events["journey-end"].notified'),false);
+late.run('activate()');const summary=late.run('narrativeSummary("away")');for(const time of ['00:49:00','00:50:00','01:00:00','10:00:00'])assert.ok(summary.includes(time));assert.ok(summary.includes('França'));assert.ok(!summary.includes('sequestro'));const notes=late.run('state.notifications.length');late.run('processNarrativeEvents();processNarrativeEvents()');assert.equal(late.run('state.notifications.length'),notes);assert.equal(late.run('state.timeline.events["journey-end"].read'),false);
+const again=boot(late.storage,late.clock.now);again.run('activate();processNarrativeEvents()');assert.equal(again.run('state.notifications.length'),notes);assert.equal(again.run('state.dogStory.messages.length'),8);
+const noSpoilers=boot();noSpoilers.run('activate()');assert.ok(!noSpoilers.run('narrativeSummary("recent")').includes('França'));assert.equal(noSpoilers.run('narrativeSummary("away")'),'Nenhuma alteração significativa foi registrada durante sua ausência.');
+noSpoilers.run('state.page="calendar";calendarMonth=Date.UTC(2091,3,1);calendarDay="2091-04-02";render()');assert.ok(noSpoilers.el('#content').innerHTML.includes('Meu aniversário 🎂'));assert.ok(noSpoilers.el('#content').innerHTML.includes('Mais um ano sobrevivendo.'));assert.ok(!noSpoilers.el('#content').innerHTML.includes('França'));
+late.run('state.page="mapa";render()');assert.ok(late.el('#content').innerHTML.includes('translate(182.35 41.14)'));assert.ok(late.el('#content').innerHTML.includes('Histórico de localização'));assert.ok(late.el('#content').innerHTML.includes('journey-route'));
+// Alarms still use real time even when the narrative clock jumps multiple days.
+const alarm=boot();alarm.run('activate();startSecurityAlarm()');assert.equal(alarm.run('securityRemaining()'),90);const deadline=alarm.run('state.security.deadline');alarm.run('advanceGameTime(3000)');assert.equal(alarm.run('state.security.deadline'),deadline);assert.equal(alarm.run('securityRemaining()'),90);alarm.run('SECURITY_SECTORS.forEach(s=>closeSecuritySector(s.id))');assert.equal(alarm.run('state.security.status'),'contained');assert.equal(alarm.audioControl.instances[0].paused,true);
+const failed=boot();failed.run('activate();startSecurityAlarm();advanceGameTime(120)');failed.clock.now+=90000;failed.run('securityTick()');assert.equal(failed.run('state.security.status'),'failed');failed.clock.now+=4500;failed.run('securityTick();processNarrativeEvents()');assert.equal(failed.run('state.security.status'),'idle');assert.ok(failed.run('state.timeline.events["dog-found"]'));assert.equal(failed.run('state.dogStory.messages.length'),8);
+// Existing apps, notes, delayed replies and images remain functional.
+const old=boot();old.run('activate();state.page="mensagens";state.openChat="esther";render()');old.fire('#content','click',{closest:s=>s==='[data-reply]'?{dataset:{reply:'0'}}:null});old.clock.now+=4000;old.run('tickConversations()');assert.ok(old.el('#content').innerHTML.includes('Para de brincar.'));
+old.run('state.page="notas";render()');old.el('#noteTitle').value='<nota>';old.el('#noteBody').value='texto';old.fire('#content','click',{id:'saveNote'});assert.ok(old.el('#content').innerHTML.includes('&lt;nota&gt;'));
+old.run('state.page="galeria";render()');for(const photo of old.run('availablePhotos()')){assert.ok(fs.existsSync(path.join(root,'fotos',photo.file)));old.run('openPhoto('+JSON.stringify(photo.id)+')');assert.equal(old.el('#photoViewer').open,true);old.run('closePhoto()');}
+old.run('state.page="ia";render()');old.fire('#content','click',{closest:s=>s==='[data-ia]'?{dataset:{ia:'recent'}}:null});old.clock.now+=4000;old.run('tickConversations()');assert.ok(old.el('#content').innerHTML.includes('nesse período'));
+late.storage.set('other-app','keep');late.run('restartWholeStory()');assert.equal(late.storage.get('other-app'),'keep');assert.equal(late.run('state.profile'),null);assert.equal(late.run('state.clock'),null);assert.equal(late.run('getGameDate().toISOString()'),'2091-03-31T23:00:00.000Z');assert.equal(late.run('Object.keys(state.timeline.events).length'),0);assert.equal(late.run('state.timeline.lastSeen'),null);assert.equal(late.run('state.dogStory.photoUnlocked'),false);assert.equal(late.run('currentNarrativePosition().stage'),'base');assert.equal(late.run('state.vitals.bpm'),76);
+console.log('PASS: official start; persistent offline clock; midnight; scheduled dog and both choices; photo gate; vital history; 06:00 transit and 11:00 France; birthday; idempotent events/notifications; real summaries; real-time alarm; legacy apps and selective reset.');
+globalThis.testDone=Promise.resolve();
 
-for(const choice of [0,1]) {
- const dog=boot();dog.run('activate();state.page="galeria";render()');assert.ok(!dog.el('#content').innerHTML.includes('data-photo="dog"'));
- dog.run('openPhoto("dog")');assert.equal(dog.el('#photoViewer').open,false);
- dog.run('state.page="mensagens";state.openChat="group";render()');
- for(let i=0;i<6;i++){dog.clock.now+=4000;dog.run('tickConversations()');}
- assert.equal(dog.run('state.dogStory.photoUnlocked'),false);dog.clock.now+=4000;dog.run('tickConversations()');assert.equal(dog.run('state.dogStory.photoUnlocked'),true);assert.ok(dog.el('#content').innerHTML.includes('data-photo="dog"'));
- dog.run('state.page="galeria";render()');assert.ok(dog.el('#content').innerHTML.includes('data-photo="dog"'));dog.clock.now+=20000;dog.run('tickConversations()');assert.equal(dog.run('state.dogStory.messages.length'),7);
- const reload=boot(dog.storage,dog.clock.now);reload.run('activate();state.page="mensagens";state.openChat="group";render();tickConversations()');assert.equal(reload.run('state.dogStory.messages.length'),8);assert.ok(reload.el('#content').innerHTML.includes('data-dog-choice="0"'));assert.ok(reload.el('#content').innerHTML.includes('data-dog-choice="1"'));
- reload.clock.now+=20000;reload.run('tickConversations()');assert.equal(reload.run('state.dogStory.messages.length'),8);
- const pick=i=>reload.fire('#content','click',{closest:s=>s==='[data-dog-choice]'?{dataset:{dogChoice:String(i)}}:null});pick(choice);pick(1-choice);assert.equal(reload.run('state.dogStory.choice'),choice);assert.equal(reload.run('state.dogStory.messages.filter(m=>m.from==="mine").length'),1);assert.ok(!reload.el('#content').innerHTML.includes('data-dog-choice='));
- const resume=boot(reload.storage,reload.clock.now);resume.run('activate();state.page="mensagens";state.openChat="group";render()');for(let i=0;i<12;i++){resume.clock.now+=4000;resume.run('tickConversations()');}
- assert.equal(resume.run('state.dogStory.completed'),true);assert.equal(resume.run('state.dogStory.messages.at(-2).text'),'PRONTO, ELE JÁ TÁ AQUI!! 🐶');assert.equal(resume.run('state.dogStory.messages.at(-1).text'),'Novo integrante acolhido na base.');assert.equal(resume.run('state.dogStory.messages.filter(m=>m.photoId==="dog").length'),1);assert.equal(resume.run('state.security.status'),'idle');
- assert.equal(resume.run('state.dogStory.messages[9].text'),choice===0?'EU SABIA QUE PODIA CONTAR COM VOCÊ KKKKK':'AH NÃO, 40 😭');
- const completed=boot(resume.storage,resume.clock.now);assert.equal(completed.run('state.dogStory.completed'),true);assert.equal(completed.run('state.dogStory.photoUnlocked'),true);
+// Personal network, immutable historical messages and player-owned diary.
+const personal=boot();personal.run('activate()');
+for(const id of ['esther','kevin','gustavo','mae']){
+ assert.ok(personal.run('chats['+JSON.stringify(id)+']'));
+ personal.fire('#content','click',{closest:s=>s==='[data-profile]'?{dataset:{profile:id}}:null});
+ personal.run('state.page="mensagens";render()');
+ // Open through the actual profile control while in the messenger.
+ personal.fire('#content','click',{closest:s=>s==='[data-profile]'?{dataset:{profile:id}}:null});
+ assert.ok(personal.el('#content').innerHTML.includes('Perfil na rede'));
+ assert.ok(personal.el('#content').innerHTML.includes('BASE — GRUPO GERAL'));
 }
-console.log('PASS: both dog choices, mandatory adoption, photo gating, paused conversation, reload before/after choice, no duplicate replies or photos.');
+personal.fire('#content','click',{closest:s=>s==='[data-profile]'?{dataset:{profile:'group'}}:null});
+assert.ok(personal.el('#content').innerHTML.includes('15 de janeiro de 2090'));
+assert.equal((personal.el('#content').innerHTML.match(/data-profile="(?:player|esther|kevin|gustavo|mae)"/g)||[]).length,5);
+personal.run('messengerProfile=null;state.openChat="mae";render()');assert.ok(personal.el('#content').innerHTML.includes('Nenhuma mensagem disponível neste histórico.'));
+personal.run('state.openChat="group";render()');assert.ok(personal.el('#content').innerHTML.includes('Tô preso no banheiro'));const noticeCount=personal.run('state.notifications.length');personal.run('render();save()');assert.equal(personal.run('state.notifications.length'),noticeCount);
+const historic=boot(personal.storage,personal.clock.now);historic.run('activate();state.page="mensagens";state.openChat="group";render()');assert.equal((historic.el('#content').innerHTML.match(/Tô preso no banheiro/g)||[]).length,1);
+personal.run('state.page="diario";render()');assert.ok(personal.el('#content').innerHTML.includes('Mais um dia na base.'));assert.ok(personal.el('#content').innerHTML.includes('31/03/2091'));
+personal.el('#diaryTitle').value='Descoberta <segura>';personal.el('#diaryBody').value='Equipe A está fora.';personal.fire('#content','click',{id:'saveDiary'});assert.equal(personal.run('state.diary.length'),1);assert.ok(personal.el('#content').innerHTML.includes('&lt;segura&gt;'));
+const diaryReload=boot(personal.storage,personal.clock.now);diaryReload.run('activate();state.page="diario";render()');assert.ok(diaryReload.el('#content').innerHTML.includes('Equipe A está fora.'));const diaryId=diaryReload.run('state.diary[0].id');
+diaryReload.fire('#content','click',{closest:s=>s==='[data-edit-diary]'?{dataset:{editDiary:diaryId}}:null});diaryReload.el('#diaryTitle').value='Corrigido';diaryReload.el('#diaryBody').value='Anotação revisada';diaryReload.fire('#content','click',{id:'saveDiary'});assert.equal(diaryReload.run('state.diary[0].title'),'Corrigido');assert.equal(diaryReload.run('state.diary.length'),1);
+diaryReload.fire('#content','input',{id:'diarySearch',value:'sem resultado'});assert.ok(!diaryReload.el('#diaryEntries').innerHTML.includes('Corrigido'));
+diaryReload.fire('#content','click',{closest:s=>s==='[data-delete-diary]'?{dataset:{deleteDiary:'base-2091'}}:null});assert.equal(diaryReload.run('ORIGINAL_DIARY.title'),'Mais um dia na base.');assert.equal(diaryReload.run('Object.isFrozen(ORIGINAL_DIARY)'),true);
+diaryReload.fire('#content','click',{closest:s=>s==='[data-delete-diary]'?{dataset:{deleteDiary:diaryId}}:null});assert.equal(diaryReload.run('state.diary.length'),0);
+assert.equal(personal.run('migrateCharacterData({sender:"Noah",sent:{noah:1}}).sender'),'Gustavo');assert.equal(personal.run('migrateCharacterData({sent:{noah:1}}).sent.gustavo'),1);
+personal.run('restartWholeStory()');assert.equal(personal.run('state.diary.length'),0);assert.equal(personal.run('messengerProfile'),null);
+console.log('PASS: contacts, five group members, profile controls, historical messages without replay, diary CRUD/reload/search/escaping, immutable original, character migration, full reset.');
 
-// New-game identity precedes facial recognition; names are escaped at rendering.
-const identity=boot(new Map(),1000000,true);
-assert.equal(identity.run('state.profile'),null);identity.run('activate()');assert.equal(identity.run('state.unlocked'),false);
-assert.equal(identity.el('#identityScreen').classList.contains('hidden'),false);
-identity.el('#playerName').value='   ';identity.el('#playerPronouns').value='neutral';identity.fire('#identityForm','submit');assert.equal(identity.run('state.profile'),null);
-identity.el('#playerName').value='Alex <3';identity.el('#playerPronouns').value='she';identity.fire('#identityForm','submit');assert.equal(identity.run('state.profile.name'),'Alex <3');assert.equal(identity.run('state.unlocked'),false);assert.equal(identity.el('#scanScreen').classList.contains('scanning'),true);
-identity.timeouts[0]();identity.timeouts.at(-1)();assert.equal(identity.run('state.unlocked'),true);
-assert.equal(identity.run('amelieAddress()'),'Mãe, você precisa me escutar.');identity.run('state.profile.pronouns="he"');assert.equal(identity.run('amelieAddress()'),'Pai, você precisa me escutar.');assert.equal(identity.run('dialogueText("{player}: {subject}, {object}")'),'Alex <3: Ele, dele');identity.run('state.profile.pronouns="neutral";save()');assert.equal(identity.run('amelieAddress()'),'Por favor, me escuta. Eu só quero você de volta.');
-identity.run('state.page="mensagens";state.openChat="esther";render()');assert.ok(identity.el('#content').innerHTML.includes('Alex &lt;3'));
-const identityReload=boot(identity.storage,identity.clock.now+86400000);assert.equal(identityReload.run('state.profile.name'),'Alex <3');assert.equal(identityReload.el('#identityScreen').classList.contains('hidden'),true);
-// Clock rollover, pause, persistence and independence from real-time deadlines.
-const calendar=boot();assert.equal(calendar.run('getGameDate().toISOString()'),'2091-04-09T23:00:00.000Z');calendar.run('activate()');calendar.clock.now+=60000;calendar.run('saveGameTime()');assert.equal(calendar.run('getGameDate().toISOString()'),'2091-04-09T23:01:00.000Z');
-calendar.run('advanceGameTime(59)');assert.equal(calendar.run('getGameDate().toISOString()'),'2091-04-10T00:00:00.000Z');calendar.run('advanceGameTime(1440)');assert.equal(calendar.run('getGameDate().toISOString()'),'2091-04-11T00:00:00.000Z');
-calendar.run('document.hidden=true');calendar.fire('document','visibilitychange');const paused=calendar.run('state.gameTime');calendar.clock.now+=7200000;calendar.run('saveGameTime()');assert.equal(calendar.run('state.gameTime'),paused);calendar.run('document.hidden=false');calendar.fire('document','visibilitychange');calendar.clock.now+=1000;calendar.run('saveGameTime()');assert.equal(calendar.run('state.gameTime'),paused+1000);
-const offline=boot(calendar.storage,calendar.clock.now+86400000);assert.equal(offline.run('state.gameTime'),paused+1000);
-calendar.run('startSecurityAlarm()');const deadline=calendar.run('state.security.deadline');calendar.run('advanceGameTime(2880)');assert.equal(calendar.run('state.security.deadline'),deadline);assert.equal(calendar.run('securityRemaining()'),90);
-const bpmBefore=calendar.run('state.vitals.bpm');for(let i=0;i<20;i++){calendar.clock.now+=1000;calendar.run('tickVitals()');}assert.ok(calendar.run('state.vitals.bpm')>bpmBefore);assert.ok(calendar.run('state.vitals.bpm')<=155);
-calendar.run('SECURITY_SECTORS.forEach(s=>closeSecuritySector(s.id))');const peak=calendar.run('state.vitals.bpm');calendar.clock.now+=1000;calendar.run('tickVitals()');assert.ok(calendar.run('state.vitals.bpm')<peak);assert.ok(peak-calendar.run('state.vitals.bpm')<=1.5);
-// Cancel preserves progress; reset clears owned state only and cancels queued unlock.
-calendar.storage.set('another-project','keep me');calendar.run('state.dogStory.photoUnlocked=true;state.notes.push({id:99,title:"Reset me",body:"text"});state.locator=false;save();');calendar.el('#restartDialog').showModal();calendar.fire('#cancelRestart','click');assert.equal(calendar.run('state.locator'),false);assert.equal(calendar.el('#restartDialog').open,false);
-calendar.el('#restartDialog').showModal();calendar.fire('#confirmRestart','click');assert.equal(calendar.storage.get('another-project'),'keep me');assert.equal(calendar.run('state.profile'),null);assert.equal(calendar.run('state.unlocked'),false);assert.equal(calendar.run('state.locator'),true);assert.equal(calendar.run('state.dogStory.photoUnlocked'),false);assert.equal(calendar.run('state.security.closed.length'),0);assert.equal(calendar.run('state.security.status'),'idle');assert.equal(calendar.run('state.vitals.bpm'),76);assert.equal(calendar.run('getGameDate().toISOString()'),'2091-04-09T23:00:00.000Z');assert.equal(calendar.run('state.notes.length'),1);assert.equal(calendar.el('#identityScreen').classList.contains('hidden'),false);assert.equal(calendar.audioControl.instances[0].paused,true);
-identity.run('beginFaceScan()');const lateScan=identity.timeouts.at(-1);identity.run('restartWholeStory()');lateScan();assert.equal(identity.run('state.unlocked'),false);assert.equal(identity.run('state.profile'),null);
-console.log('PASS: identity validation and scan order; three pronoun choices; saved identity; calendar midnight/day rollover, pause and offline resume; real-time alarm independence; gradual BPM recovery; selective full reset and stale scan cancellation.');
+const inbox=boot();inbox.run('activate();state.page="mensagens";state.openChat="esther";render()');inbox.fire('#content','click',{closest:s=>s==='[data-reply]'?{dataset:{reply:'0'}}:null});inbox.run('endNarrativeAccess();save()');const inboxReturn=boot(inbox.storage,inbox.clock.now+10000);inboxReturn.run('activate()');assert.ok(inboxReturn.run('narrativeSummary("away")').includes('Você recebeu 1 mensagem'));
+const hidden=boot();hidden.run('activate();document.hidden=true');hidden.fire('document','visibilitychange');hidden.clock.now+=3*3600000;hidden.run('syncGameTime();processNarrativeEvents()');assert.equal(hidden.run('getGameDate().toISOString()'),'2091-04-01T02:00:00.000Z');assert.equal(hidden.run('state.dogStory.choice'),null);hidden.run('document.hidden=false');hidden.fire('document','visibilitychange');assert.ok(hidden.run('narrativeSummary("away")').includes('Atividade física intensa'));
+const migratedStore=new Map([['pirate40-save-v1',JSON.stringify({profile:{name:'Alex',pronouns:'he'},gameTime:Date.UTC(2091,3,9,23),notes:[{id:7,title:'Preservar',body:'Lembrete',date:'2091'}],sent:{esther:0}})]]);const migrated=boot(migratedStore);assert.equal(migrated.run('state.notes[0].title'),'Preservar');assert.equal(migrated.run('state.sent.esther'),0);assert.equal(migrated.run('currentNarrativePosition().stage'),'france');const stable=migrated.run('state.gameTime');const migrationReload=boot(migratedStore,migrated.clock.now);assert.equal(migrationReload.run('state.gameTime'),stable);assert.equal(migrationReload.run('Object.keys(state.timeline.events).length'),6);
+console.log('PASS: offline pending-message summary, hidden-tab clock, absence window, non-destructive legacy-save migration.');

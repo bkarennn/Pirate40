@@ -1,126 +1,105 @@
-PIRATE 40 — Nexus personal / Segurança e Atlas
+PIRATE 40 — Calendário oficial e registros offline
 
-COMO ABRIR
-Abra index.html diretamente no navegador ou use Live Server no VS Code.
-Todos os recursos são locais. Não há bibliotecas, tiles, APIs ou chaves externas.
-Reconhecimento facial, conexão, bateria e localização são fictícios.
+ABRIR
+Abra index.html diretamente ou use Live Server. Recursos locais, sem APIs pagas,
+GPS, câmera, sensores ou bibliotecas de mapas externas.
 
-SEGURANÇA
-Desbloqueie o dispositivo e abra Segurança.
-Em "Diagnóstico do dispositivo", clique em "Iniciar evento de invasão".
-Outra forma: execute startSecurityAlarm() no console ou em um gatilho narrativo.
-Disparo automático: visite Mensagens, Mapa, Galeria, Anotações e Segurança,
-e envie uma pergunta à IA. Volte à home e permaneça nela por 5 segundos.
-Sair da home ou bloquear o dispositivo antes do disparo cancela a espera.
-O evento acontece uma vez por partida. startSecurityAlarm() ignora a exploração,
-mas não repete um evento concluído; reinicie a partida para testar outra vez.
-Altere SECURITY_ALARM_SECONDS, no início de security.js, para ajustar os 90 segundos.
-O evento abre os seis setores; todos são obrigatórios e fechados manualmente.
-O prazo usa um timestamp persistido: trocar de app, bloquear ou recarregar não pausa o alarme.
-Sucesso: invasão contida, portas permanecem seladas e jogo continua.
-Falha: tela de eliminação por 4,5 segundos, seguida de reinício na tela de bloqueio.
-O reinício limpa respostas, leituras, notificações e histórico da IA da sessão,
-restaura o localizador e preserva anotações pessoais e papel de parede.
-O botão de apagar progresso em Configurações continua sendo o reset completo.
-O alarme usa o MP3 original da pasta em loop, com uma única instância de áudio.
-O arquivo original não foi alterado. O som é preparado no desbloqueio.
-Se o navegador bloquear a reprodução, clique em "Ativar som do alarme".
-É possível silenciar e reativar o áudio durante a invasão.
-Vitória, falha e reinício interrompem o som e retornam o áudio ao início.
+RELÓGIO
+Nova partida: 31/03/2091 às 23:00. O relógio começa ao confirmar a identidade.
+state.clock guarda startedReal, baseGame, offsetMs e rate no salvamento existente.
+Horário = baseGame + (timestamp atual - startedReal) * rate + offsetMs.
+Continua avançando com a página fechada, oculta ou o dispositivo bloqueado.
+O intervalo de atualização serve apenas à interface e ao processamento online.
+GAME_TIME_RATE em session.js define a proporção inicial (1:1); a taxa é salva.
+Mudanças para trás no relógio do computador não fazem a narrativa retroceder.
+Alterações manuais para frente afetam o tempo offline, pois não existe servidor.
+advanceGameTime(minutes) permite saltos positivos e processa eventos vencidos.
+getGameDate() e saveGameTime() expõem o calendário. resetGameTime() usa o reinício
+completo para não deixar eventos futuros executados em uma data anterior.
 
-DIÁLOGOS DA EMERGÊNCIA
-BASE — CANAL DE EMERGÊNCIA recebe mensagens a cada 3,5 segundos.
-Os remetentes, horários fictícios, histórico e leitura são salvos no navegador.
-Novas mensagens não abrem o aplicativo nem apagam rascunhos de notas.
-A contenção cancela falas de invasão ainda não enviadas e inicia quatro falas
-de alívio. O histórico permanece após a vitória e a recarga.
-A derrota limpa grupo, atividades, portas e disparo da partida.
-Ajustes: SECURITY_HOME_DELAY_MS e SECURITY_MESSAGE_INTERVAL_MS em security.js.
+EVENTOS OFICIAIS (timeline.js / STORY_EVENTS)
+31/03 23:00 — ativação e registro da base oceânica.
+01/04 00:31 — Kevin encontra o cachorro. As falas iniciais chegam a cada 3,5s.
+01/04 00:49 — atividade física intensa, 150 BPM.
+01/04 00:50 — movimento interrompido, 72 BPM; não declara morte nem a causa.
+01/04 01:00 — deslocamento não programado.
+01/04 10:00 — chegada à França, instalação desconhecida.
+02/04 — Meu aniversário 🎂 / Mais um ano sobrevivendo. Visível antecipadamente,
+sem idade, festa ou novas mensagens de personagens.
+
+O motor processa todos os eventos vencidos em ordem e grava execução, notificação
+e leitura separadamente. A abertura não marca registros automaticamente como lidos.
+As notificações pendentes aparecem ao desbloquear, uma única vez.
+O histórico biométrico e o de localização preservam horários oficiais dos eventos.
+O calendário permite navegar por meses, selecionar dias e consultar registros.
+Apenas o aniversário é antecipado; futuros acontecimentos não são revelados.
+
+CACHORRO E FOTOS
+Antes de 00:31, a conversa e a foto do cachorro ficam bloqueadas.
+Retornos offline recuperam as mensagens iniciais até a pergunta de Kevin.
+A decisão nunca é automática. Depois da escolha, as falas continuam com pausas
+no grupo CANAL / BASE. Ambas as respostas levam ao acolhimento do cachorro.
+Trocar de app ou recarregar mantém decisão, mensagens e desbloqueios.
+O chip, os girassóis e os dois post-its continuam disponíveis na galeria.
+As fotografias originais são reutilizadas em miniaturas e no ampliador, sem cópias.
 
 MAPA
-177 contornos de países, dados Natural Earth em domínio público.
-Veja MAP-SOURCES.txt para origem e projeção.
-Base fictícia: 25° S, 170° E, Pacífico Sul, próxima da Oceania.
-Use + / −, arraste com mouse ou toque, ou use as setas com o mapa focado.
-O botão ⌖ centraliza Pirate 40; ◎ restaura a visão ampla.
-Home no teclado centraliza a posição. Zoom limitado de 1× a 8×.
-Sem localizador, o marcador representa a última posição conhecida.
-A cartografia interna da instalação continua indisponível nos arquivos narrativos.
+SVG local com 177 contornos Natural Earth (ver MAP-SOURCES.txt).
+JOURNEY_WAYPOINTS define uma rota fixa entre a base oceânica e a França.
+A posição é interpolada pelo horário entre 01:00 e 10:00, sem sorteio de coordenadas.
+A página mostra diretamente o ponto atual ao retornar, sem reproduzir nove horas.
+Controles de zoom, arraste, teclado e centralização continuam disponíveis.
+O percurso e a posição são registros do dispositivo de 2091, não GPS real.
+O localizador continua controlando a emissão do sinal, não a existência dos registros.
 
-ORGANIZAÇÃO
-index.html, script.js, style.css: interface e recursos existentes.
-ia.js, ia.css: assistente narrativo e suas respostas.
-security.js, security.css: alarme, portas, contador e reinício.
-map.js, map.css, world-data.js: atlas offline e controles.
-Chaves de salvamento mantidas: pirate40-save-v1 e pirate40-ia-v1.
+IA E AUSÊNCIA
+As opções "O que aconteceu enquanto estive fora?" e "O que aconteceu recentemente?"
+consultam registros reais da partida e contagem de mensagens recebidas.
+O último acesso é atualizado enquanto o dispositivo está aberto e ao sair/bloquear.
+A janela de ausência é mantida durante a sessão; perguntar novamente não a apaga.
+O resumo recente cobre as últimas 24 horas narrativas. Não antecipa eventos.
+As respostas continuam usando a animação de digitação e o histórico salvo.
 
-VALIDAÇÃO
-Execute: node Pirate40/tests/game.test.cjs (a partir da pasta acima do projeto).
-Testes de lógica com DOM e relógio simulados: nove aplicativos, contagem de 90s,
-fechamento manual, clique duplicado, retomada, vitória, falha no limite,
-reinício, preservação das notas, alertas, zoom, pan, centralização,
-mensagens, IA, notas e persistência.
-Também testados: preparação silenciosa, loop único, autoplay bloqueado,
-ativação manual, parada na vitória/falha, seis pré-requisitos, espera na home,
-mensagens em ordem, contadores de leitura e retomada do diálogo após recarga.
-Áudio real e renderização não foram testados em navegador; os testes usam mocks.
-Não substituem teste visual: não havia navegador conectado no ambiente de edição.
+INVASÃO
+Condições de exploração preservadas; startSecurityAlarm() continua disponível.
+A invasão não é disparada pelo relógio às 23:00. SECURITY_ALARM_SECONDS = 90
+é sempre tempo real, separado do calendário e de advanceGameTime().
+Portas manuais, áudio original, escolha de silenciar, vitória e falha preservados.
+Uma derrota reinicia a sessão de segurança, mas preserva o relógio e o livro de
+registros programados para evitar repetir eventos oficiais ou perder suas fotos.
 
-RITMO DAS CONVERSAS
-Contatos e IA exibem “digitando…” antes de responder (1,4 a 3,4 segundos).
-A duração é ajustada por typingDelay() em script.js. A pergunta aparece imediatamente.
-A IA aceita uma pergunta por vez; respostas pendentes sobrevivem à recarga e são
-canceladas no reinício. O grupo de emergência indica quem prepara a próxima fala.
+IDENTIDADE E REINÍCIO
+Nome, pronomes e reconhecimento facial fictício continuam funcionando.
+Configurações > Gerenciamento da Partida > REINICIAR HISTÓRIA pede confirmação.
+Ao confirmar: cancela timers, interrompe sons e restaura identidade, portas,
+localizador, decisões, notas, fotos bloqueadas, BPM, calendário e históricos.
+A data volta para 31/03/2091 às 23:00 e o relógio aguarda a nova identificação.
+Apenas pirate40-save-v1 e pirate40-ia-v1 são removidos/recriados.
+Salvamentos anteriores sem âncora offline mantêm seu horário e progresso; a âncora
+é criada no primeiro carregamento desta versão e os eventos vencidos são registrados.
 
-GALERIA E PERSONAGENS
-As fotografias originais de fotos/ são usadas sem renomear nem duplicar arquivos.
-A pasta contém três imagens: cachorro, post-it 00:31 e post-it com girassol.
-photos.js centraliza os caminhos, miniaturas e ampliação compartilhada com o chat.
-Clique numa foto para ampliar; feche pelo X, Escape ou clique fora da janela.
-O grupo CANAL / BASE contém a conversa antiga do cachorro (08/04/2091),
-sem notificações automáticas e sem interferir na sequência da invasão.
-characters.js migra nomes e identificadores antigos para Esther e Kevin,
-preservando escolhas, leituras, respostas pendentes e o prazo da invasão.
-Noah e os demais personagens permanecem inalterados.
+ARQUIVOS
+script.js / style.css / index.html: dispositivo e aplicativos existentes.
+session.js: identidade, tempo offline, sinais vitais e reinício.
+timeline.js: agenda, histórico, ausência, resumo, calendário e posição na rota.
+security.js / security.css: invasão, áudio e portas.
+map.js / map.css / world-data.js: atlas SVG.
+photos.js / characters.js: fotos e migração dos nomes Esther/Kevin.
+ia.js / ia.css: conversas da IA.
 
-CONVERSA INTERATIVA DO CACHORRO
-Abra Mensagens > CANAL / BASE. As falas avançam com pausas enquanto o grupo
-está aberto e o dispositivo desbloqueado; ficam pausadas durante a invasão.
-A foto do cachorro só aparece na galeria após Kevin enviá-la no histórico.
-Na pergunta de Kevin, escolha uma resposta. A decisão é única e salva; ambas
-as versões terminam com o cachorro acolhido na base.
-O campo dogStory do salvamento guarda mensagens, decisão, desbloqueio e conclusão.
-Sair do app ou recarregar não reinicia a conversa. Saves anteriores começam
-essa nova sequência sem alterar os outros aplicativos ou suas decisões.
+TESTES
+Execute node Pirate40/tests/game.test.cjs na pasta acima do projeto.
+Usam relógio, áudio e DOM simulados. Cobrem a cronologia, retorno offline, escolha
+do cachorro nos dois caminhos, fotos, biometria, rota, aniversário, resumos,
+notificações sem duplicação, alarme independente, migração e reset seletivo.
+A inspeção visual e reprodução real do som exigem um navegador; não havia um
+navegador conectado no ambiente de edição.
 
-IDENTIDADE, CALENDÁRIO E SINAIS VITAIS
-Nova partida: nome obrigatório (até 32 caracteres), pronomes e reconhecimento
-facial fictício. O perfil fica salvo; abrir novamente mostra apenas o desbloqueio.
-Codinome Pirate 40 preservado. dialogueText(), playerTerms() e amelieAddress()
-centralizam as adaptações. Amelie não ganha um novo evento nesta atualização.
-
-Calendário inicial: 09/04/2091 às 23:00, independente da data do computador.
-GAME_TIME_RATE em session.js controla a proporção (padrão 1:1).
-O tempo avança com o dispositivo desbloqueado e a página visível; pausa ao
-bloquear, trocar de aba ou fechar. Ao recarregar não acrescenta tempo ausente.
-Funções: advanceGameTime(minutes), getGameDate(), saveGameTime(), resetGameTime().
-Novas respostas, mensagens emergenciais e da IA usam o calendário.
-O histórico antigo do cachorro e os registros antigos mantêm as datas originais.
-O alarme continua usando prazo real de 90 segundos, independente do calendário.
-
-Sinais Vitais: monitor fictício do corpo de 2091, com BPM e ECG animados.
-A invasão eleva gradualmente a frequência; a contenção permite recuperação.
-setVitalsState('rest'|'normal'|'tension'|'extreme') prepara eventos futuros,
-sem criar sequestros ou usar sensores reais.
-
-Configurações > Gerenciamento da Partida > REINICIAR HISTÓRIA abre confirmação.
-Cancelar mantém o progresso. Reiniciar tudo interrompe áudio, cancela timers,
-restaura todas as escolhas, notas, portas, desbloqueios, BPM, localizador e data,
-e volta à identificação. Apenas pirate40-save-v1 e pirate40-ia-v1 são removidas
-e recriadas com valores iniciais. Outros dados do navegador não são apagados.
-A derrota continua sendo um reinício de sessão, preservando identidade, calendário,
-anotações e papel de parede conforme a mecânica anterior.
-
-Testes adicionais: validação de identidade, pronomes, ordem do reconhecimento,
-virada da meia-noite, dias, pausa e retomada, BPM gradual, independência do prazo
-da invasão, reset seletivo e cancelamento de desbloqueios pendentes.
+CONTATOS E DIÁRIO
+- personal.js reúne perfis, avatares provisórios, metadados do grupo e Diário.
+- BASE_GROUP.created define a criação do grupo (15/01/2090); cinco integrantes.
+- BASE_HISTORY é um histórico estático de 31/03/2091, sem notificações ou replay.
+- Noah é migrado para Gustavo também em salvamentos antigos.
+- ORIGINAL_DIARY é imutável. Apenas state.diary permite criar, editar e excluir registros pessoais; a interface diferencia a conexão de 2026 e as datas narrativas de 2091.
+- As descobertas sobrevivem ao recarregamento e ao reinício por invasão, mas são apagadas no reinício completo da história.
+- Testes: node tests/game.test.cjs (inclui perfis, integrantes, histórico, Diário e regressões).
