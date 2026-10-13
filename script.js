@@ -12,6 +12,7 @@ const initialState = {
   openChat: null,
   read: [],
   sent: {},
+  replyDue: {},
   notes: [{ id: 1, title: 'LEMBRETE', body: 'Desligar o localizador antes de sair.\nNão confiar nos canais oficiais.\nEncontrar o protótipo.', date: '09/04/2091' }],
   locator: true,
   wallpaper: 'aero',
@@ -79,7 +80,7 @@ content.addEventListener('click', e => {
     const chatId = state.openChat, idx = Number(response.dataset.reply);
     const answer = chats[chatId].answers[idx];
     if (!answer || state.sent[chatId] !== undefined) return;
-    state.sent[chatId] = idx; save(); render();
+    state.sent[chatId] = idx; state.replyDue[chatId] = Date.now() + typingDelay(answer.response); save(); render();
   }
   if (e.target.id === 'saveNote') {
     const title = $('#noteTitle').value.trim(), body = $('#noteBody').value.trim();
@@ -96,8 +97,10 @@ content.addEventListener('click', e => {
 content.addEventListener('change', e => { if (e.target.id === 'locatorToggle') { state.locator = e.target.checked; save(); render(); notify(state.locator ? 'Localização ativada' : 'Localização desativada', state.locator ? 'Seu dispositivo está transmitindo sua posição.' : 'Emissão de posição suspensa.', 'sistema'); }});
 function render() {
   if (typeof mapCleanup === 'function') mapCleanup();
+  if (typeof trackSecurityActivity === 'function') { if (state.page !== 'ia') trackSecurityActivity(state.page); checkSecurityProgress(); }
+  if (state.page === 'mensagens' && state.openChat === 'emergency' && state.security) { state.security.readCount=state.security.messages.length; save(); }
   nav.querySelectorAll('[data-page]').forEach(b => b.classList.toggle('active', b.dataset.page === state.page));
-  const unread = Object.keys(chats).filter(id => !state.read.includes(id)).length;
+  const unread = getUnreadMessageCount();
   const pill = $('#unreadPill'); if (pill) { pill.textContent = unread; pill.hidden = unread === 0; }
   document.querySelector('.device').dataset.wallpaper = state.wallpaper;
   systemScreen.classList.toggle('is-home', state.page === 'inicio');
@@ -113,24 +116,24 @@ function render() {
   if (content.animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) content.animate([{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'translateY(0)'}], {duration:220,easing:'ease-out'});
 }
 function renderInicio() {
-  const unread = Object.keys(chats).filter(id => !state.read.includes(id)).length;
+  const unread = getUnreadMessageCount();
   return `<div class="home-hero"><div><p class="eyebrow">SEGUNDA-FEIRA, 9 DE ABRIL</p><div class="hero-clock">03<span>:</span>41</div><p class="hero-date">2091 <span>→</span> Um novo dia lá fora.</p></div><div class="orbit-art" aria-hidden="true"><i></i><i></i><i></i><span>40</span></div></div>
   <div class="home-widgets"><button class="survival-widget" data-go="ia"><span class="widget-icon">${icon('ia')}</span><span><small>AO SEU LADO</small><strong>Um passo de cada vez.</strong><span>Seu guia de sobrevivência está aqui.</span></span><span class="widget-arrow">→</span></button><button class="location-widget" data-go="mapa">${icon('mapa')}<small>ÚLTIMA LOCALIZAÇÃO</small><strong>Em algum lugar<br>no oceano.</strong><span class="location-caption">Instalação desconhecida ↗</span></button></div>
   <div class="apps-heading"><span>Seu universo</span><span>${apps.length} aplicativos · modo local</span></div>
-  <div class="app-grid">${apps.map(a => `<button class="app-launcher" data-go="${a.id}"><span class="app-icon ${a.id}">${icon(a.id)}${a.id === 'mensagens' && unread ? `<b class="app-badge">${unread}</b>` : ''}</span><strong>${a.name}</strong><small>${a.caption}</small></button>`).join('')}</div>
+  <div class="app-grid">${apps.map(a => `<button class="app-launcher" data-go="${a.id}"><span class="app-icon ${a.id}">${icon(a.id)}${a.id === 'mensagens' ? `<b class="app-badge" data-message-badge ${unread ? '' : 'hidden'}>${unread}</b>` : ''}</span><strong>${a.name}</strong><small>${a.caption}</small></button>`).join('')}</div>
   <button class="home-reminder" data-go="${unread ? 'mensagens' : 'notas'}"><span class="reminder-dot"></span><span>${unread ? 'Você tem conversas esperando por você.' : 'Algumas coisas merecem ser lembradas.'}</span><span>→</span></button>`;
 }
 function renderMensagens() {
   if (state.openChat) {
     const id = state.openChat, chat = chats[id], sentIdx = state.sent[id];
     const messages = [...chat.messages];
-    if (sentIdx !== undefined) { const a = chat.answers[sentIdx]; messages.push({from:'mine',text:a.text,time:'03:45'}, {from:'other',text:a.response,time:'03:46'}); }
+    if (sentIdx !== undefined) { const a = chat.answers[sentIdx]; messages.push({from:'mine',text:a.text,time:'03:45'}); if (!state.replyDue[id]) messages.push({from:'other',text:a.response,time:'03:46'}); }
     return `<button class="back" data-back>← VOLTAR AOS CONTATOS</button>${head(escapeHtml(chat.name),escapeHtml(chat.status))}
-    <div class="chat">${messages.map(m=>`<div class="bubble ${m.from==='mine'?'mine':''}">${escapeHtml(m.text)}<small>${m.time}</small></div>`).join('')}</div>
-    ${sentIdx===undefined && chat.answers.length ? `<p class="muted" style="margin-top:15px">ESCOLHA UMA RESPOSTA:</p><div class="responses">${chat.answers.map((a,i)=>`<button class="secondary" data-reply="${i}">${escapeHtml(a.text)}</button>`).join('')}</div>` : `<p class="muted" style="margin-top:15px">${chat.answers.length ? 'Nenhuma nova resposta disponível.' : 'Canal somente para leitura.'}</p>`}`;
+    <div class="chat">${messages.map(m=>`<div class="bubble ${m.from==='mine'?'mine':''}">${m.sender ? `<strong class="message-sender">${escapeHtml(m.sender)}</strong>` : ''}${escapeHtml(m.text)}<small>${m.date ? escapeHtml(m.date)+' · ' : ''}${m.time}</small></div>`).join('')}${state.replyDue[id] ? typingIndicator(chat.name) : ''}${id === 'emergency' ? '<div id="emergencyTyping"></div>' : ''}</div>
+    ${sentIdx===undefined && chat.answers.length ? `<p class="muted" style="margin-top:15px">ESCOLHA UMA RESPOSTA:</p><div class="responses">${chat.answers.map((a,i)=>`<button class="secondary" data-reply="${i}">${escapeHtml(a.text)}</button>`).join('')}</div>` : `<p class="muted" style="margin-top:15px">${state.replyDue[id] ? 'Aguardando resposta…' : chat.answers.length ? 'Nenhuma nova resposta disponível.' : 'Canal somente para leitura.'}</p>`}`;
   }
   return `${head('COMUNICAÇÕES','REDE DESCENTRALIZADA')}
-  <div class="list">${Object.entries(chats).map(([id,chat])=>`<button class="chat-item" data-chat="${id}"><div><strong>${escapeHtml(chat.name)} ${!state.read.includes(id)?'•':''}</strong><p>${escapeHtml(chat.messages.at(-1).text)}</p></div><span class="meta">${chat.messages.at(-1).time} →</span></button>`).join('')}</div>`;
+  <div class="list">${Object.entries(chats).map(([id,chat])=>`<button class="chat-item" data-chat="${id}"><div><strong>${escapeHtml(chat.name)} ${(id==='emergency' ? state.security.messages.length-state.security.readCount : !state.read.includes(id))?'•':''}</strong><p>${escapeHtml(chat.messages.at(-1).text)}</p></div><span class="meta">${chat.messages.at(-1).time} →</span></button>`).join('')}</div>`;
 }
 function renderMapa() { return renderWorldMap(); }
 function renderGaleria() {
@@ -189,21 +192,21 @@ function goHome() { state.page = 'inicio'; state.openChat = null; save(); render
 $('#homeButton').addEventListener('click', goHome);
 $('#homeGesture').addEventListener('click', goHome);
 let toastTimer;
-function showToast(text, page) {
+function showToast(text, page, urgent = false, chatId = null) {
   if (!state.unlocked) return;
-  $('#toastRegion').innerHTML = `<button class="notification-toast" data-notification-page="${page}">${icon('bell')}<span>${escapeHtml(text)}</span><span>→</span></button>`;
+  $('#toastRegion').innerHTML = `<button class="notification-toast ${urgent ? 'urgent' : ''}" data-notification-page="${page}" ${chatId ? `data-notification-chat="${chatId}"` : ''}>${icon(urgent ? 'seguranca' : 'bell')}<span>${escapeHtml(text)}</span><span>→</span></button>`;
   clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toastRegion').innerHTML = '', 5500);
 }
-function notify(title, body, page, toast = true) {
-  state.notifications.unshift({id:Date.now(), title, body, page, read:false});
+function notify(title, body, page, toast = true, urgent = false, chatId = null) {
+  state.notifications.unshift({id:Date.now(), title, body, page, urgent, chatId, read:false});
   state.notifications = state.notifications.slice(0,20); save(); updateNotifications();
-  if (toast) showToast(`${title} · ${body}`, page);
+  if (toast) showToast(`${title} · ${body}`, page, urgent, chatId);
 }
 function updateNotifications() {
   const count = state.notifications.filter(n => !n.read).length;
   $('#notificationCount').textContent = count; $('#notificationCount').hidden = count === 0;
   $('#notificationButton').disabled = !state.unlocked;
-  $('#notificationPanel').innerHTML = `<div class="row"><h3>Notificações</h3><button id="closeNotifications" class="icon-button" aria-label="Fechar notificações">×</button></div>${state.notifications.length ? state.notifications.map(n => `<button class="notification-item ${n.read ? '' : 'unread'}" data-notification-page="${n.page}"><strong>${escapeHtml(n.title)}</strong><span>${escapeHtml(n.body)}</span></button>`).join('') : '<p class="muted">Tudo tranquilo por aqui.</p>'}`;
+  $('#notificationPanel').innerHTML = `<div class="row"><h3>Notificações</h3><button id="closeNotifications" class="icon-button" aria-label="Fechar notificações">×</button></div>${state.notifications.length ? state.notifications.map(n => `<button class="notification-item ${n.read ? '' : 'unread'}" data-notification-page="${n.page}" ${n.chatId ? `data-notification-chat="${n.chatId}"` : ''}><strong>${escapeHtml(n.title)}</strong><span>${escapeHtml(n.body)}</span></button>`).join('') : '<p class="muted">Tudo tranquilo por aqui.</p>'}`;
 }
 $('#notificationButton').addEventListener('click', () => {
   const panel = $('#notificationPanel'); panel.classList.toggle('hidden');
@@ -213,10 +216,41 @@ $('#notificationButton').addEventListener('click', () => {
 document.addEventListener('click', e => {
   if (e.target.closest('#closeNotifications')) { $('#notificationPanel').classList.add('hidden'); $('#notificationButton').setAttribute('aria-expanded','false'); }
   const notice = e.target.closest('[data-notification-page]');
-  if (notice && state.unlocked) { state.page = notice.dataset.notificationPage; state.openChat = null; $('#notificationPanel').classList.add('hidden'); $('#notificationButton').setAttribute('aria-expanded','false'); $('#toastRegion').innerHTML = ''; save(); render(); }
+  if (notice && state.unlocked) { state.page = notice.dataset.notificationPage; state.openChat = notice.dataset.notificationChat || null; $('#notificationPanel').classList.add('hidden'); $('#notificationButton').setAttribute('aria-expanded','false'); $('#toastRegion').innerHTML = ''; save(); render(); }
   const wallpaper = e.target.closest('[data-wallpaper]');
   if (wallpaper) { state.wallpaper = wallpaper.dataset.wallpaper; save(); render(); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('#notificationPanel').classList.add('hidden'); $('#notificationButton').setAttribute('aria-expanded','false'); if (state.unlocked) goHome(); } });
 document.querySelector('.device').dataset.wallpaper = state.wallpaper;
 updateNotifications();
+
+function getUnreadMessageCount() {
+ const ordinary=Object.keys(chats).filter(id=>id!=='emergency' && !state.read.includes(id)).length;
+ return ordinary + (state.security ? Math.max(0,state.security.messages.length-state.security.readCount) : 0);
+}
+function updateMessageBadges() {
+ const count=getUnreadMessageCount();
+ const pill=$('#unreadPill');if(pill){pill.textContent=count;pill.hidden=count===0;}
+ document.querySelectorAll('[data-message-badge]').forEach(el=>{el.textContent=count;el.hidden=count===0;});
+}
+
+// A short, length-sensitive pause makes live replies feel conversational.
+function typingDelay(text) { return Math.min(3400, 1400 + String(text).length * 13); }
+function typingIndicator(name) {
+ return '<div class="typing-indicator" role="status"><span>' + escapeHtml(name) + ' está digitando</span><span class="typing-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>';
+}
+function tickConversations() {
+ for (const [id,due] of Object.entries(state.replyDue)) {
+   if (Date.now() < due) continue;
+   delete state.replyDue[id];
+   const reading = state.unlocked && state.page === 'mensagens' && state.openChat === id;
+   if (!reading) state.read = state.read.filter(item => item !== id);
+   save();
+   if (reading) { render(); const log=content.querySelector('.chat');if(log)log.scrollTop=log.scrollHeight; }
+   updateMessageBadges();
+ }
+ document.dispatchEvent(new Event('pirate40:chat-tick'));
+ if (typeof updateEmergencyTyping === 'function') updateEmergencyTyping();
+}
+setInterval(tickConversations, 250);
+document.addEventListener('visibilitychange', tickConversations);

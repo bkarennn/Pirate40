@@ -66,6 +66,15 @@ Verifique se o local é seguro, tente obter resposta e observe a respiração. A
   if (!history || !history.length) history = [{ from: 'bot', text: GREETING }];
   function persist() { try { localStorage.setItem(KEY, JSON.stringify(history)); } catch {} }
   function safe(text) { return String(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function pendingReply() { return history.at(-1)?.pendingReply; }
+  function finishPendingReply() {
+    const pending=pendingReply();
+    if (!pending || Date.now()<pending.due) return;
+    delete history.at(-1).pendingReply;
+    history.push({from:'bot',text:pending.text});persist();
+    if(state.unlocked && state.page==='ia'){render();const log=document.getElementById('iaLog');if(log)log.scrollTop=log.scrollHeight;}
+  }
+  document.addEventListener('pirate40:chat-tick',finishPendingReply);
   function renderIA() {
     const buttons = [...options];
     if (history.at(-1)?.text.includes('Qual é a situação?')) {
@@ -77,9 +86,9 @@ Verifique se o local é seguro, tente obter resposta e observe a respiração. A
     }
     return `<div class="page-heading"><h2>IA DE SOBREVIVÊNCIA</h2><span class="meta">ASSISTÊNCIA // 2091</span></div>
       <div class="ia-head"><div class="ia-symbol">${icon('ia')}</div><div><strong>IA DE SOBREVIVÊNCIA</strong><p class="muted">UNIDADE DE CONTINGÊNCIA • RESPOSTAS DISPONÍVEIS</p></div></div>
-      <div class="ia-log" id="iaLog" role="log" aria-live="polite">${history.map(m => `<div class="ia-msg ${m.from}"><small>${m.from === 'bot' ? 'IA DE SOBREVIVÊNCIA' : 'PIRATE 40'}</small>${safe(m.text)}</div>`).join('')}</div>
+      <div class="ia-log" id="iaLog" role="log" aria-live="polite">${history.map(m => `<div class="ia-msg ${m.from}"><small>${m.from === 'bot' ? 'IA DE SOBREVIVÊNCIA' : 'PIRATE 40'}</small>${safe(m.text)}</div>`).join('')}${pendingReply() ? typingIndicator('IA de Sobrevivência') : ''}</div>
       <div class="ia-actions"><span class="eyebrow">SELECIONE UMA SOLICITAÇÃO</span><button class="ia-clear" id="iaClear">Reiniciar conversa</button></div>
-      <div class="ia-options">${buttons.map(o => `<button class="ia-option" data-ia="${o.id}">${safe(o.label)} ↗</button>`).join('')}</div>
+      <div class="ia-options">${buttons.map(o => `<button class="ia-option" data-ia="${o.id}" ${pendingReply() ? 'disabled' : ''}>${safe(o.label)} ↗</button>`).join('')}</div>
       <p class="ia-footer">Transmissão local simulada • Informações de sobrevivência são orientações gerais; não substituem serviços de emergência.</p>`;
   }
   document.addEventListener('pirate40:reset-session', () => { history = [{from:'bot',text:GREETING}]; persist(); });
@@ -90,12 +99,13 @@ Verifique se o local é seguro, tente obter resposta e observe a respiração. A
       history = [{ from: 'bot', text: GREETING }]; persist(); render(); return;
     }
     const button = event.target.closest('[data-ia]');
-    if (!button) return;
+    if (!button || pendingReply()) return;
     const id = button.dataset.ia;
     const option = [...options, {id:'medSangue',label:'Sangramento'}, {id:'medQueimadura',label:'Queimadura'}, {id:'medDesmaio',label:'Pessoa inconsciente'}].find(o => o.id === id);
     if (!option || !answers[id]) return;
+    trackSecurityActivity('ia');
     const reply = answers[id].replace('{locator}', state.locator ? 'ATIVO' : 'DESLIGADO');
-    history.push({ from: 'user', text: option.label }, { from: 'bot', text: reply });
+    history.push({ from: 'user', text: option.label, pendingReply:{text:reply,due:Date.now()+typingDelay(reply)} });
     persist(); render();
     const log = document.getElementById('iaLog'); if (log) log.scrollTop = log.scrollHeight;
   });
