@@ -1,46 +1,33 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#090f19" />
-  <title>PIRATE 40 | Terminal Pessoal</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="ia.css" />
-  <script src="script.js" defer></script>
-  <script src="ia.js" defer></script>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#c7d8ef">
+<title>PIRATE 40 · Seu espaço em 2091</title>
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="ia.css">
+<script src="script.js" defer></script><script src="ia.js" defer></script>
 </head>
 <body>
-  <div class="noise" aria-hidden="true"></div>
-  <main class="shell">
-    <header class="topline"><span>REDE PIRATA // CONEXÃO TEMPORAL</span><span id="statusConnection">● LINK ESTÁVEL</span></header>
-    <section class="device" aria-label="Terminal pessoal de 2091">
-      <div class="device-top"><span>◈ NEXUS / P40</span><span id="deviceClock">03:41</span></div>
-      <section id="scanScreen" class="scan-screen">
-        <div class="scan-orb" aria-hidden="true"><div class="face-outline">◌</div><div class="scan-line"></div></div>
-        <p class="eyebrow">PROTOCOLO BIOMÉTRICO</p>
-        <h1>VERIFICAÇÃO DE IDENTIDADE</h1>
-        <p id="scanDescription" class="muted">Posicione-se diante do sensor para autenticar o acesso à unidade.</p>
-        <p class="tiny">Simulação narrativa. Nenhuma câmera será acessada.</p>
-        <button id="scanButton" class="primary">INICIAR RECONHECIMENTO FACIAL</button>
-      </section>
-      <section id="systemScreen" class="system hidden">
-        <div class="identity"><div class="avatar">P<span>40</span></div><div><p class="eyebrow">IDENTIDADE VALIDADA</p><h2>PIRATE 40</h2><p class="muted">Dispositivo pessoal • 2091</p></div><button id="lockButton" class="icon-button" title="Bloquear dispositivo" aria-label="Bloquear dispositivo">⏻</button></div>
-        <div class="nav" id="nav" aria-label="Aplicativos">
-          <button class="nav-btn active" data-page="inicio">⌂ <span>Início</span></button>
-          <button class="nav-btn" data-page="ia">✧ <span>IA de sobrevivência</span></button>
-          <button class="nav-btn" data-page="mensagens">▤ <span>Mensagens</span><b id="unreadPill">1</b></button>
-          <button class="nav-btn" data-page="mapa">⌖ <span>Mapa</span></button>
-          <button class="nav-btn" data-page="galeria">▧ <span>Galeria</span></button>
-          <button class="nav-btn" data-page="notas">✎ <span>Notas</span></button>
-          <button class="nav-btn" data-page="arquivos">▣ <span>Arquivos</span></button>
-          <button class="nav-btn" data-page="sistema">⚙ <span>Sistema</span></button>
-        </div>
-        <div class="content" id="content" aria-live="polite"></div>
-        <div class="bottomline"><span id="bottomLocation">LOCALIZAÇÃO: NÃO VERIFICADA</span><span>SYS/P40.91</span></div>
-      </section>
-    </section>
-    <p class="outside-note">TERMINAL RECUPERADO · NÃO COMPARTILHE SUA LOCALIZAÇÃO</p>
-  </main>
-</body>
-</html>
+<main class="shell">
+<header class="topline"><a href="#" aria-label="Nexus pessoal">nexus<span>personal</span></a><span>UM PEQUENO MUNDO. TODO SEU.</span><span>EST. 2091</span></header>
+<section class="device" aria-label="Dispositivo pessoal de Pirate 40">
+<div class="device-top"><span id="deviceClock">03:41</span><span class="camera" aria-hidden="true"></span><div class="status-icons"><span id="statusConnection">Rede local</span><span aria-label="Sinal disponível">▂▄▆</span><span class="battery" aria-label="Bateria simulada: 78%"></span><span>78%</span><button id="notificationButton" class="status-button" aria-label="Abrir notificações" aria-expanded="false"><span data-icon="bell"></span><b id="notificationCount">0</b></button></div></div>
+<section id="scanScreen" class="scan-screen">
+<p class="eyebrow">SEGUNDA-FEIRA, 9 DE ABRIL DE 2091</p><div class="lock-clock">03:41</div>
+<div class="scan-orb" aria-hidden="true"><div class="face-outline" data-icon="face"></div><div class="scan-line"></div></div>
+<h1>Seu mundo está aqui.</h1><p id="scanDescription" class="muted">Desbloqueie seu dispositivo para continuar, Pirate 40.</p>
+<button id="scanButton" class="primary">Reconhecer meu rosto <span aria-hidden="true">→</span></button><p class="tiny">Reconhecimento fictício · sem acesso à câmera</p>
+<div class="lock-signature">nexus OS <span>2091</span></div>
+</section>
+<section id="systemScreen" class="system hidden">
+<div class="identity"><div class="avatar">P<span>40</span></div><div><p class="eyebrow">SEU ESPAÇO PESSOAL</p><h2>Pirate 40</h2></div><button id="lockButton" class="icon-button" title="Bloquear dispositivo" aria-label="Bloquear dispositivo"><span data-icon="lock"></span></button></div>
+<nav class="nav" id="nav" aria-label="Aplicativos"></nav>
+<div class="app-toolbar hidden" id="appToolbar"><button id="homeButton" class="back">← Tela inicial</button><span id="appTitle"></span><span class="meta">nexus OS</span></div>
+<div class="content" id="content"></div>
+<footer class="bottomline"><span id="bottomLocation"></span><button id="homeGesture" aria-label="Voltar à tela inicial" class="home-gesture"></button><span>nexus OS · 2091</span></footer>
+</section>
+<aside id="notificationPanel" class="notification-panel hidden" aria-label="Central de notificações"></aside>
+<div id="toastRegion" class="toast-region" role="status" aria-live="polite"></div>
+</section>
+<p class="outside-note"><span class="live-dot"></span> Seu dispositivo. Suas memórias. Seus segredos.</p>
+</main>
+</body></html>

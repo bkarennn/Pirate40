@@ -40,7 +40,7 @@ SISTEMA DE DESSALINIZAÇÃO DA BASE: STATUS DESCONHECIDO.`,
     sinal: `DIAGNÓSTICO DE EMISSÃO
 Status atual do localizador: {locator}.
 A emissão de posição pode permitir rastreamento por terceiros.
-Controle disponível em SISTEMA > Localizador.`,
+Controle disponível em Configurações > Localizador.`,
     piratas: `CLASSIFICAÇÃO // INDIVÍDUOS NÃO REGISTRADOS
 “Pirata” é a designação atribuída a pessoas sem implante neural ativo.
 O acesso a serviços oficiais pode ser recusado. Os canais de comunicação utilizados por esses indivíduos são descentralizados.
@@ -76,7 +76,7 @@ Verifique se o local é seguro, tente obter resposta e observe a respiração. A
       );
     }
     return `<div class="page-heading"><h2>IA DE SOBREVIVÊNCIA</h2><span class="meta">ASSISTÊNCIA // 2091</span></div>
-      <div class="ia-head"><div class="ia-symbol">✧</div><div><strong>IA DE SOBREVIVÊNCIA</strong><p class="muted">UNIDADE DE CONTINGÊNCIA • RESPOSTAS DISPONÍVEIS</p></div></div>
+      <div class="ia-head"><div class="ia-symbol">${icon('ia')}</div><div><strong>IA DE SOBREVIVÊNCIA</strong><p class="muted">UNIDADE DE CONTINGÊNCIA • RESPOSTAS DISPONÍVEIS</p></div></div>
       <div class="ia-log" id="iaLog" role="log" aria-live="polite">${history.map(m => `<div class="ia-msg ${m.from}"><small>${m.from === 'bot' ? 'IA DE SOBREVIVÊNCIA' : 'PIRATE 40'}</small>${safe(m.text)}</div>`).join('')}</div>
       <div class="ia-actions"><span class="eyebrow">SELECIONE UMA SOLICITAÇÃO</span><button class="ia-clear" id="iaClear">Reiniciar conversa</button></div>
       <div class="ia-options">${buttons.map(o => `<button class="ia-option" data-ia="${o.id}">${safe(o.label)} ↗</button>`).join('')}</div>
