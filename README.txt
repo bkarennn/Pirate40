@@ -56,7 +56,7 @@ Chaves de salvamento mantidas: pirate40-save-v1 e pirate40-ia-v1.
 
 VALIDAÇÃO
 Execute: node Pirate40/tests/game.test.cjs (a partir da pasta acima do projeto).
-Testes de lógica com DOM e relógio simulados: oito aplicativos, contagem de 90s,
+Testes de lógica com DOM e relógio simulados: nove aplicativos, contagem de 90s,
 fechamento manual, clique duplicado, retomada, vitória, falha no limite,
 reinício, preservação das notas, alertas, zoom, pan, centralização,
 mensagens, IA, notas e persistência.
@@ -82,3 +82,45 @@ sem notificações automáticas e sem interferir na sequência da invasão.
 characters.js migra nomes e identificadores antigos para Esther e Kevin,
 preservando escolhas, leituras, respostas pendentes e o prazo da invasão.
 Noah e os demais personagens permanecem inalterados.
+
+CONVERSA INTERATIVA DO CACHORRO
+Abra Mensagens > CANAL / BASE. As falas avançam com pausas enquanto o grupo
+está aberto e o dispositivo desbloqueado; ficam pausadas durante a invasão.
+A foto do cachorro só aparece na galeria após Kevin enviá-la no histórico.
+Na pergunta de Kevin, escolha uma resposta. A decisão é única e salva; ambas
+as versões terminam com o cachorro acolhido na base.
+O campo dogStory do salvamento guarda mensagens, decisão, desbloqueio e conclusão.
+Sair do app ou recarregar não reinicia a conversa. Saves anteriores começam
+essa nova sequência sem alterar os outros aplicativos ou suas decisões.
+
+IDENTIDADE, CALENDÁRIO E SINAIS VITAIS
+Nova partida: nome obrigatório (até 32 caracteres), pronomes e reconhecimento
+facial fictício. O perfil fica salvo; abrir novamente mostra apenas o desbloqueio.
+Codinome Pirate 40 preservado. dialogueText(), playerTerms() e amelieAddress()
+centralizam as adaptações. Amelie não ganha um novo evento nesta atualização.
+
+Calendário inicial: 09/04/2091 às 23:00, independente da data do computador.
+GAME_TIME_RATE em session.js controla a proporção (padrão 1:1).
+O tempo avança com o dispositivo desbloqueado e a página visível; pausa ao
+bloquear, trocar de aba ou fechar. Ao recarregar não acrescenta tempo ausente.
+Funções: advanceGameTime(minutes), getGameDate(), saveGameTime(), resetGameTime().
+Novas respostas, mensagens emergenciais e da IA usam o calendário.
+O histórico antigo do cachorro e os registros antigos mantêm as datas originais.
+O alarme continua usando prazo real de 90 segundos, independente do calendário.
+
+Sinais Vitais: monitor fictício do corpo de 2091, com BPM e ECG animados.
+A invasão eleva gradualmente a frequência; a contenção permite recuperação.
+setVitalsState('rest'|'normal'|'tension'|'extreme') prepara eventos futuros,
+sem criar sequestros ou usar sensores reais.
+
+Configurações > Gerenciamento da Partida > REINICIAR HISTÓRIA abre confirmação.
+Cancelar mantém o progresso. Reiniciar tudo interrompe áudio, cancela timers,
+restaura todas as escolhas, notas, portas, desbloqueios, BPM, localizador e data,
+e volta à identificação. Apenas pirate40-save-v1 e pirate40-ia-v1 são removidas
+e recriadas com valores iniciais. Outros dados do navegador não são apagados.
+A derrota continua sendo um reinício de sessão, preservando identidade, calendário,
+anotações e papel de parede conforme a mecânica anterior.
+
+Testes adicionais: validação de identidade, pronomes, ordem do reconhecimento,
+virada da meia-noite, dias, pausa e retomada, BPM gradual, independência do prazo
+da invasão, reset seletivo e cancelamento de desbloqueios pendentes.

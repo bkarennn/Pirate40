@@ -4,23 +4,24 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#c7d8ef">
 <title>PIRATE 40 · Seu espaço em 2091</title>
 <link rel="stylesheet" href="style.css"><link rel="stylesheet" href="ia.css"><link rel="stylesheet" href="security.css"><link rel="stylesheet" href="map.css">
-<script src="characters.js" defer></script><script src="photos.js" defer></script><script src="script.js" defer></script><script src="ia.js" defer></script><script src="world-data.js" defer></script><script src="map.js" defer></script><script src="security.js" defer></script>
+<script src="characters.js" defer></script><script src="photos.js" defer></script><script src="script.js" defer></script><script src="ia.js" defer></script><script src="world-data.js" defer></script><script src="map.js" defer></script><script src="session.js" defer></script><script src="security.js" defer></script>
 </head>
 <body>
 <main class="shell">
 <header class="topline"><a href="#" aria-label="Nexus pessoal">nexus<span>personal</span></a><span>UM PEQUENO MUNDO. TODO SEU.</span><span>EST. 2091</span></header>
 <section class="device" aria-label="Dispositivo pessoal de Pirate 40">
-<div class="device-top"><span id="deviceClock">03:41</span><span class="camera" aria-hidden="true"></span><div class="status-icons"><span id="statusConnection">Rede local</span><span aria-label="Sinal disponível">▂▄▆</span><span class="battery" aria-label="Bateria simulada: 78%"></span><span>78%</span><button id="notificationButton" class="status-button" aria-label="Abrir notificações" aria-expanded="false"><span data-icon="bell"></span><b id="notificationCount">0</b></button></div></div>
+<div class="device-top"><span id="deviceClock">23:00</span><span class="camera" aria-hidden="true"></span><div class="status-icons"><span id="statusConnection">Rede local</span><span aria-label="Sinal disponível">▂▄▆</span><span class="battery" aria-label="Bateria simulada: 78%"></span><span>78%</span><button id="notificationButton" class="status-button" aria-label="Abrir notificações" aria-expanded="false"><span data-icon="bell"></span><b id="notificationCount">0</b></button></div></div>
 <aside id="securityBanner" class="security-banner hidden" aria-label="Alarme de segurança"><div><strong>ALERTA CRÍTICO</strong><span>INVASÃO DETECTADA · acesso não autorizado à instalação. Protocolo de contenção iniciado.</span></div><button id="securitySound" type="button">Ativar som do alarme</button><strong aria-label="Tempo restante" data-security-time>01:30</strong><button id="securityOpen">Fechar setores →</button></aside>
+<section id="identityScreen" class="identity-screen hidden"><p class="eyebrow">PIRATE 40 · SINCRONIZAÇÃO DE IDENTIDADE</p><h1>Uma identidade. Dois tempos.</h1><p class="muted">Antes de estabelecer a conexão temporal, precisamos identificar o usuário.</p><form id="identityForm"><label for="playerName">Nome</label><input id="playerName" class="input" required maxlength="32" autocomplete="nickname" placeholder="Como podemos chamar você?"><label for="playerPronouns">Pronomes</label><select id="playerPronouns"><option value="he">Ele/dele</option><option value="she">Ela/dela</option><option value="neutral" selected>Prefiro não dizer</option></select><p id="identityError" role="status"></p><button class="primary" type="submit">Continuar</button></form><p class="tiny">Codinome em 2091: Pirate 40</p></section>
 <section id="scanScreen" class="scan-screen">
-<p class="eyebrow">SEGUNDA-FEIRA, 9 DE ABRIL DE 2091</p><div class="lock-clock">03:41</div>
+<p class="eyebrow" data-game-date></p><div class="lock-clock" data-game-clock>23:00</div>
 <div class="scan-orb" aria-hidden="true"><div class="face-outline" data-icon="face"></div><div class="scan-line"></div></div>
 <h1>Seu mundo está aqui.</h1><p id="scanDescription" class="muted">Desbloqueie seu dispositivo para continuar, Pirate 40.</p>
 <button id="scanButton" class="primary">Reconhecer meu rosto <span aria-hidden="true">→</span></button><p class="tiny">Reconhecimento fictício · sem acesso à câmera</p>
 <div class="lock-signature">nexus OS <span>2091</span></div>
 </section>
 <section id="systemScreen" class="system hidden">
-<div class="identity"><div class="avatar">P<span>40</span></div><div><p class="eyebrow">SEU ESPAÇO PESSOAL</p><h2>Pirate 40</h2></div><button id="lockButton" class="icon-button" title="Bloquear dispositivo" aria-label="Bloquear dispositivo"><span data-icon="lock"></span></button></div>
+<div class="identity"><div class="avatar">P<span>40</span></div><div><p class="eyebrow">SEU ESPAÇO PESSOAL</p><h2 id="profileName">Pirate 40</h2></div><button id="lockButton" class="icon-button" title="Bloquear dispositivo" aria-label="Bloquear dispositivo"><span data-icon="lock"></span></button></div>
 <nav class="nav" id="nav" aria-label="Aplicativos"></nav>
 <div class="app-toolbar hidden" id="appToolbar"><button id="homeButton" class="back">← Tela inicial</button><span id="appTitle"></span><span class="meta">nexus OS</span></div>
 <div class="content" id="content"></div>
@@ -33,4 +34,5 @@
 <p class="outside-note"><span class="live-dot"></span> Seu dispositivo. Suas memórias. Seus segredos.</p>
 </main>
 <dialog id="photoViewer" class="photo-viewer" aria-labelledby="photoCaption"><div class="photo-viewer-bar"><span>Galeria · Pirate 40</span><button id="closePhoto" class="icon-button" aria-label="Fechar fotografia">×</button></div><figure><img id="fullPhoto" alt=""><figcaption id="photoCaption"></figcaption></figure><p id="photoError" class="hidden" role="status">Não foi possível carregar esta fotografia.</p></dialog>
+<dialog id="restartDialog" class="restart-dialog" aria-labelledby="restartTitle"><h2 id="restartTitle">Você deseja realmente reiniciar Pirate 40?</h2><p>Todo o progresso da história será apagado. A partida retornará ao dia 9 de abril de 2091, às 23:00.</p><div class="responses"><button id="cancelRestart" class="secondary" autofocus>Cancelar</button><button id="confirmRestart" class="danger">Reiniciar tudo</button></div></dialog>
 </body></html>

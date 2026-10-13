@@ -17,3 +17,6 @@
 
 /* Emergency previews never intercept clicks on the door controls underneath. */
 .security-active .notification-toast{pointer-events:none}
+
+/* Nine applications remain spacious on desktop and wrap on touch screens. */
+.app-grid{grid-template-columns:repeat(5,minmax(0,1fr));row-gap:18px}@media(max-width:620px){.app-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}

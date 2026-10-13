@@ -4,7 +4,8 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const root = path.resolve(__dirname,'..');
-function boot(storage = new Map(), now = 1000000) {
+function boot(storage = new Map(), now = 1000000, newGame = false) {
+  if(!newGame && !storage.has('pirate40-save-v1'))storage.set('pirate40-save-v1',JSON.stringify({profile:{name:'Alex',pronouns:'neutral'}}));
   const elements = new Map(), handlers = new Map(), timeouts = [];
   const clock = {now};
   const audioControl={blocked:false,instances:[],plays:0,pauses:0};
@@ -16,7 +17,7 @@ function boot(storage = new Map(), now = 1000000) {
   function el(key) {
     if(elements.has(key)) return elements.get(key);
     const classes = new Set();
-    const node = {innerHTML:'',textContent:'',dataset:{},attrs:{},value:'',open:false,isConnected:true,
+    const node = {innerHTML:'',textContent:'',dataset:{},attrs:{},style:{setProperty(){}},value:'',open:false,isConnected:true,
       showModal(){this.open=true;},close(){this.open=false;},
       classList:{add:x=>classes.add(x),remove:x=>classes.delete(x),contains:x=>classes.has(x),toggle(x,force){const on=force===undefined?!classes.has(x):force;on?classes.add(x):classes.delete(x);return on;}},
       addEventListener(type,fn){const k=key+':'+type;handlers.set(k,[...(handlers.get(k)||[]),fn]);},
@@ -27,20 +28,20 @@ function boot(storage = new Map(), now = 1000000) {
   }
   function fire(key,type,target={}) {const e={target:{id:'',closest:()=>null,...target},preventDefault(){},...target};(handlers.get(key+':'+type)||[]).forEach(fn=>fn(e));}
   class FakeDate extends Date {static now(){return clock.now;}}
-  const context=vm.createContext({console,structuredClone,Audio:FakeAudio,Date:FakeDate,Event:class{constructor(type){this.type=type;}},AbortController,
+  const context=vm.createContext({console,structuredClone,performance:{now:()=>clock.now},Audio:FakeAudio,Date:FakeDate,Event:class{constructor(type){this.type=type;}},AbortController,
     ResizeObserver:class{observe(){}disconnect(){}},matchMedia:()=>({matches:true}),
     setInterval:()=>1,clearInterval(){},setTimeout:fn=>{timeouts.push(fn);return timeouts.length;},clearTimeout(){},confirm:()=>false,
     localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},
     document:{querySelector:el,querySelectorAll:()=>[],getElementById:id=>el('#'+id),addEventListener:(t,f)=>el('document').addEventListener(t,f),dispatchEvent:e=>fire('document',e.type)},
     location:{reload(){}},addEventListener:(t,f)=>el('window').addEventListener(t,f)});
   context.window=context;
-  for(const file of ['characters.js','photos.js','script.js','ia.js','world-data.js','map.js','security.js']) new vm.Script(fs.readFileSync(path.join(root,file),'utf8'),{filename:file}).runInContext(context);
-  return {el,fire,clock,storage,audioControl,run:code=>vm.runInContext(code,context)};
+  for(const file of ['characters.js','photos.js','script.js','ia.js','world-data.js','map.js','session.js','security.js']) new vm.Script(fs.readFileSync(path.join(root,file),'utf8'),{filename:file}).runInContext(context);
+  return {el,fire,clock,storage,audioControl,timeouts,run:code=>vm.runInContext(code,context)};
 }
 const g=boot();
 assert.equal(g.run('state.unlocked'),false);
 g.run('activate()');
-assert.equal(g.run('apps.length'),8);
+assert.equal(g.run('apps.length'),9);
 g.run('apps.forEach(a=>{state.page=a.id;render();if(!content.innerHTML)throw Error(a.id);})');
 assert.equal(g.run('startSecurityAlarm()'),true);
 assert.equal(g.run('securityRemaining()'),90);
@@ -71,7 +72,7 @@ m.run('state.locator=false;render()');assert.ok(m.el('#content').innerHTML.inclu
 m.run('state.page="mensagens";state.openChat="esther";render()');m.fire('#content','click',{closest:s=>s==='[data-reply]'?{dataset:{reply:'0'}}:null});assert.ok(m.el('#content').innerHTML.includes('está digitando'));assert.ok(!m.el('#content').innerHTML.includes('Para de brincar.'));m.clock.now+=4000;m.run('tickConversations()');assert.ok(m.el('#content').innerHTML.includes('Para de brincar.'));
 m.run('state.page="ia";render()');m.fire('#content','click',{closest:s=>s==='[data-ia]'?{dataset:{ia:'sinal'}}:null});assert.ok(m.el('#content').innerHTML.includes('está digitando'));m.clock.now+=4000;m.run('tickConversations()');assert.ok(m.el('#content').innerHTML.includes('DESLIGADO'));
 m.run('state.page="notas";render()');m.el('#noteTitle').value='<nota>';m.el('#noteBody').value='Texto salvo';m.fire('#content','click',{id:'saveNote'});assert.ok(m.el('#content').innerHTML.includes('&lt;nota&gt;'));assert.equal(JSON.parse(m.storage.get('pirate40-save-v1')).notes[0].body,'Texto salvo');
-console.log('PASS: 8 apps; alarm start, duplicate guard, manual doors, deadline, reload, victory, failure, auto-reset, warnings; geography, zoom, pan, recenter; messages, IA, notes and persistence.');
+console.log('PASS: 9 apps; alarm start, duplicate guard, manual doors, deadline, reload, victory, failure, auto-reset, warnings; geography, zoom, pan, recenter; messages, IA, notes and persistence.');
 
 // Narrative gates, ordered delivery, persistent read state and audio lifecycle.
 globalThis.testDone=(async()=>{
@@ -89,7 +90,7 @@ globalThis.testDone=(async()=>{
  n.run('apps.forEach(a=>{state.page=a.id;render();if(!content.innerHTML)throw Error(a.id);})');
  n.run('state.page="notas";render()');n.el('#noteBody').value='Rascunho que não pode sumir';
  n.clock.now+=3500;n.run('securityTick()');assert.equal(n.run('state.security.messages.length'),1);assert.equal(n.el('#noteBody').value,'Rascunho que não pode sumir');assert.equal(n.run('state.page'),'notas');
- assert.equal(n.run('state.security.messages[0].sender'),'Esther');assert.equal(n.run('state.security.messages[0].time'),'03:45:03');
+ assert.equal(n.run('state.security.messages[0].sender'),'Esther');assert.equal(n.run('state.security.messages[0].date'),'09/04/2091');
  n.clock.now+=3500;n.run('securityTick()');assert.equal(n.run('state.security.messages[1].sender'),'Kevin');
  const r=boot(n.storage,n.clock.now);await Promise.resolve();r.run('activate()');assert.equal(r.run('state.security.messages.length'),2);
  r.clock.now+=28000;r.run('securityTick();securityTick()');assert.equal(r.run('state.security.messages.length'),10);
@@ -128,14 +129,55 @@ assert.equal(migrated.run('state.openChat'),'esther');assert.equal(migrated.run(
 assert.equal(migrated.run('JSON.stringify(migrateCharacterData(state))'),migrated.run('JSON.stringify(migrateCharacterData(migrateCharacterData(state)))'));
 assert.equal(migrated.run('migrateCharacterData({sent:{maya:0,esther:2}}).sent.esther'),2);
 const gallery=boot();gallery.run('activate();state.page="galeria";render()');
-for(const photo of gallery.run('PHOTO_LIBRARY')) {
+for(const photo of gallery.run('availablePhotos()')) {
  assert.ok(fs.existsSync(path.join(root,'fotos',photo.file)));
  assert.ok(gallery.el('#content').innerHTML.includes(encodeURIComponent(photo.file)));
  gallery.run('openPhoto('+JSON.stringify(photo.id)+')');assert.equal(gallery.el('#photoViewer').open,true);assert.equal(gallery.el('#fullPhoto').src,'fotos/'+encodeURIComponent(photo.file));gallery.fire('#closePhoto','click');assert.equal(gallery.el('#photoViewer').open,false);
 }
-gallery.run('state.page="mensagens";state.openChat="group";render()');assert.ok(gallery.el('#content').innerHTML.includes('data-photo="dog"'));assert.ok(gallery.el('#content').innerHTML.includes('08/04/2091'));assert.ok(gallery.el('#content').innerHTML.includes('FECHOU!!'));
-assert.equal(gallery.run('chats.group.messages.filter(m=>m.photoId==="dog").length'),1);assert.equal(gallery.run('state.security.messages.length'),0);
+gallery.run('state.page="mensagens";state.openChat="group";render()');for(let i=0;i<8;i++){gallery.clock.now+=4000;gallery.run('tickConversations()');}gallery.fire('#content','click',{closest:s=>s==='[data-dog-choice]'?{dataset:{dogChoice:'0'}}:null});for(let i=0;i<6;i++){gallery.clock.now+=4000;gallery.run('tickConversations()');}assert.ok(gallery.el('#content').innerHTML.includes('data-photo="dog"'));assert.ok(gallery.el('#content').innerHTML.includes('08/04/2091'));assert.ok(gallery.el('#content').innerHTML.includes('FECHOU!!'));
+assert.equal(gallery.run('state.dogStory.messages.filter(m=>m.photoId==="dog").length'),1);assert.equal(gallery.run('state.security.messages.length'),0);
 gallery.run('openPhoto("dog")');gallery.fire('document','keydown',{key:'Escape'});assert.equal(gallery.el('#photoViewer').open,false);assert.equal(gallery.run('state.openChat'),'group');
 gallery.run('openPhoto("dog");startSecurityAlarm()');gallery.clock.now+=90000;gallery.run('securityTick()');assert.equal(gallery.el('#photoViewer').open,false);assert.equal(gallery.run('state.security.status'),'failed');
-const galleryReload=boot(gallery.storage,gallery.clock.now);assert.equal(galleryReload.run('chats.group.messages.filter(m=>m.photoId==="dog").length'),1);
+const galleryReload=boot(gallery.storage,gallery.clock.now);assert.equal(galleryReload.run('state.dogStory.messages.filter(m=>m.photoId==="dog").length'),1);
 console.log('PASS: legacy name migration, saved replies/deadline/read state, photo paths, shared viewer, Escape, failure close, old dog conversation and no duplication after reload.');
+
+for(const choice of [0,1]) {
+ const dog=boot();dog.run('activate();state.page="galeria";render()');assert.ok(!dog.el('#content').innerHTML.includes('data-photo="dog"'));
+ dog.run('openPhoto("dog")');assert.equal(dog.el('#photoViewer').open,false);
+ dog.run('state.page="mensagens";state.openChat="group";render()');
+ for(let i=0;i<6;i++){dog.clock.now+=4000;dog.run('tickConversations()');}
+ assert.equal(dog.run('state.dogStory.photoUnlocked'),false);dog.clock.now+=4000;dog.run('tickConversations()');assert.equal(dog.run('state.dogStory.photoUnlocked'),true);assert.ok(dog.el('#content').innerHTML.includes('data-photo="dog"'));
+ dog.run('state.page="galeria";render()');assert.ok(dog.el('#content').innerHTML.includes('data-photo="dog"'));dog.clock.now+=20000;dog.run('tickConversations()');assert.equal(dog.run('state.dogStory.messages.length'),7);
+ const reload=boot(dog.storage,dog.clock.now);reload.run('activate();state.page="mensagens";state.openChat="group";render();tickConversations()');assert.equal(reload.run('state.dogStory.messages.length'),8);assert.ok(reload.el('#content').innerHTML.includes('data-dog-choice="0"'));assert.ok(reload.el('#content').innerHTML.includes('data-dog-choice="1"'));
+ reload.clock.now+=20000;reload.run('tickConversations()');assert.equal(reload.run('state.dogStory.messages.length'),8);
+ const pick=i=>reload.fire('#content','click',{closest:s=>s==='[data-dog-choice]'?{dataset:{dogChoice:String(i)}}:null});pick(choice);pick(1-choice);assert.equal(reload.run('state.dogStory.choice'),choice);assert.equal(reload.run('state.dogStory.messages.filter(m=>m.from==="mine").length'),1);assert.ok(!reload.el('#content').innerHTML.includes('data-dog-choice='));
+ const resume=boot(reload.storage,reload.clock.now);resume.run('activate();state.page="mensagens";state.openChat="group";render()');for(let i=0;i<12;i++){resume.clock.now+=4000;resume.run('tickConversations()');}
+ assert.equal(resume.run('state.dogStory.completed'),true);assert.equal(resume.run('state.dogStory.messages.at(-2).text'),'PRONTO, ELE JÁ TÁ AQUI!! 🐶');assert.equal(resume.run('state.dogStory.messages.at(-1).text'),'Novo integrante acolhido na base.');assert.equal(resume.run('state.dogStory.messages.filter(m=>m.photoId==="dog").length'),1);assert.equal(resume.run('state.security.status'),'idle');
+ assert.equal(resume.run('state.dogStory.messages[9].text'),choice===0?'EU SABIA QUE PODIA CONTAR COM VOCÊ KKKKK':'AH NÃO, 40 😭');
+ const completed=boot(resume.storage,resume.clock.now);assert.equal(completed.run('state.dogStory.completed'),true);assert.equal(completed.run('state.dogStory.photoUnlocked'),true);
+}
+console.log('PASS: both dog choices, mandatory adoption, photo gating, paused conversation, reload before/after choice, no duplicate replies or photos.');
+
+// New-game identity precedes facial recognition; names are escaped at rendering.
+const identity=boot(new Map(),1000000,true);
+assert.equal(identity.run('state.profile'),null);identity.run('activate()');assert.equal(identity.run('state.unlocked'),false);
+assert.equal(identity.el('#identityScreen').classList.contains('hidden'),false);
+identity.el('#playerName').value='   ';identity.el('#playerPronouns').value='neutral';identity.fire('#identityForm','submit');assert.equal(identity.run('state.profile'),null);
+identity.el('#playerName').value='Alex <3';identity.el('#playerPronouns').value='she';identity.fire('#identityForm','submit');assert.equal(identity.run('state.profile.name'),'Alex <3');assert.equal(identity.run('state.unlocked'),false);assert.equal(identity.el('#scanScreen').classList.contains('scanning'),true);
+identity.timeouts[0]();identity.timeouts.at(-1)();assert.equal(identity.run('state.unlocked'),true);
+assert.equal(identity.run('amelieAddress()'),'Mãe, você precisa me escutar.');identity.run('state.profile.pronouns="he"');assert.equal(identity.run('amelieAddress()'),'Pai, você precisa me escutar.');assert.equal(identity.run('dialogueText("{player}: {subject}, {object}")'),'Alex <3: Ele, dele');identity.run('state.profile.pronouns="neutral";save()');assert.equal(identity.run('amelieAddress()'),'Por favor, me escuta. Eu só quero você de volta.');
+identity.run('state.page="mensagens";state.openChat="esther";render()');assert.ok(identity.el('#content').innerHTML.includes('Alex &lt;3'));
+const identityReload=boot(identity.storage,identity.clock.now+86400000);assert.equal(identityReload.run('state.profile.name'),'Alex <3');assert.equal(identityReload.el('#identityScreen').classList.contains('hidden'),true);
+// Clock rollover, pause, persistence and independence from real-time deadlines.
+const calendar=boot();assert.equal(calendar.run('getGameDate().toISOString()'),'2091-04-09T23:00:00.000Z');calendar.run('activate()');calendar.clock.now+=60000;calendar.run('saveGameTime()');assert.equal(calendar.run('getGameDate().toISOString()'),'2091-04-09T23:01:00.000Z');
+calendar.run('advanceGameTime(59)');assert.equal(calendar.run('getGameDate().toISOString()'),'2091-04-10T00:00:00.000Z');calendar.run('advanceGameTime(1440)');assert.equal(calendar.run('getGameDate().toISOString()'),'2091-04-11T00:00:00.000Z');
+calendar.run('document.hidden=true');calendar.fire('document','visibilitychange');const paused=calendar.run('state.gameTime');calendar.clock.now+=7200000;calendar.run('saveGameTime()');assert.equal(calendar.run('state.gameTime'),paused);calendar.run('document.hidden=false');calendar.fire('document','visibilitychange');calendar.clock.now+=1000;calendar.run('saveGameTime()');assert.equal(calendar.run('state.gameTime'),paused+1000);
+const offline=boot(calendar.storage,calendar.clock.now+86400000);assert.equal(offline.run('state.gameTime'),paused+1000);
+calendar.run('startSecurityAlarm()');const deadline=calendar.run('state.security.deadline');calendar.run('advanceGameTime(2880)');assert.equal(calendar.run('state.security.deadline'),deadline);assert.equal(calendar.run('securityRemaining()'),90);
+const bpmBefore=calendar.run('state.vitals.bpm');for(let i=0;i<20;i++){calendar.clock.now+=1000;calendar.run('tickVitals()');}assert.ok(calendar.run('state.vitals.bpm')>bpmBefore);assert.ok(calendar.run('state.vitals.bpm')<=155);
+calendar.run('SECURITY_SECTORS.forEach(s=>closeSecuritySector(s.id))');const peak=calendar.run('state.vitals.bpm');calendar.clock.now+=1000;calendar.run('tickVitals()');assert.ok(calendar.run('state.vitals.bpm')<peak);assert.ok(peak-calendar.run('state.vitals.bpm')<=1.5);
+// Cancel preserves progress; reset clears owned state only and cancels queued unlock.
+calendar.storage.set('another-project','keep me');calendar.run('state.dogStory.photoUnlocked=true;state.notes.push({id:99,title:"Reset me",body:"text"});state.locator=false;save();');calendar.el('#restartDialog').showModal();calendar.fire('#cancelRestart','click');assert.equal(calendar.run('state.locator'),false);assert.equal(calendar.el('#restartDialog').open,false);
+calendar.el('#restartDialog').showModal();calendar.fire('#confirmRestart','click');assert.equal(calendar.storage.get('another-project'),'keep me');assert.equal(calendar.run('state.profile'),null);assert.equal(calendar.run('state.unlocked'),false);assert.equal(calendar.run('state.locator'),true);assert.equal(calendar.run('state.dogStory.photoUnlocked'),false);assert.equal(calendar.run('state.security.closed.length'),0);assert.equal(calendar.run('state.security.status'),'idle');assert.equal(calendar.run('state.vitals.bpm'),76);assert.equal(calendar.run('getGameDate().toISOString()'),'2091-04-09T23:00:00.000Z');assert.equal(calendar.run('state.notes.length'),1);assert.equal(calendar.el('#identityScreen').classList.contains('hidden'),false);assert.equal(calendar.audioControl.instances[0].paused,true);
+identity.run('beginFaceScan()');const lateScan=identity.timeouts.at(-1);identity.run('restartWholeStory()');lateScan();assert.equal(identity.run('state.unlocked'),false);assert.equal(identity.run('state.profile'),null);
+console.log('PASS: identity validation and scan order; three pronoun choices; saved identity; calendar midnight/day rollover, pause and offline resume; real-time alarm independence; gradual BPM recovery; selective full reset and stale scan cancellation.');

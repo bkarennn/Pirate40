@@ -90,8 +90,8 @@ function restartAfterSecurityFailure() {
   stopSecurityAlarm(); lastClosedSector = null; soundMuted = false;
   delete chats.emergency;
   // Preserve player-authored notes and wallpaper; reset narrative session progress.
-  const notes = state.notes, wallpaper = state.wallpaper;
-  state = {...structuredClone(initialState),notes,wallpaper,security:freshSecurity()};
+  const notes = state.notes, wallpaper = state.wallpaper, profile = state.profile, gameTime = state.gameTime;
+  state = {...structuredClone(initialState),notes,wallpaper,profile,gameTime,security:freshSecurity()};
   document.dispatchEvent(new Event('pirate40:reset-session'));
   save();
   $('#securityFailure').classList.add('hidden');
@@ -123,7 +123,7 @@ const INVASION_DIALOGUE = [
  ['Esther','GENTE??? O QUE TÁ ACONTECENDO??'],['Kevin','Tem alguém entrando pela doca!'],
  ['Esther','FECHA AS PORTAS!! AGORA!!'],['Noah','QUEM DEIXOU O SISTEMA DE LOCALIZAÇÃO LIGADO???'],
  ['Kevin','Espera...'],['Kevin','Meu Deus. Foi o Pirate 40.'],
- ['Esther','40, POR FAVOR, FECHA OS SETORES!!'],['Noah','É CULPA DELE! ELE DEIXOU A LOCALIZAÇÃO ATIVA!'],
+ ['Esther','{player}, POR FAVOR, FECHA OS SETORES!!'],['Noah','É CULPA DE {player}! {subject} DEIXOU A LOCALIZAÇÃO ATIVA!'],
  ['Esther','DISCUTE ISSO DEPOIS, NOAH! A GENTE VAI MORRER!'],['Sistema','Presença não autorizada detectada no perímetro.']
 ];
 const AFTERMATH_DIALOGUE = [['Esther','Conseguimos...'],['Kevin','Acho que eles não passaram.'],['Noah','Isso não teria acontecido se alguém tivesse desligado o localizador.'],['Esther','40, a gente precisa conversar.']];
@@ -171,14 +171,11 @@ function checkSecurityProgress() {
 }
 function syncEmergencyChat() {
  if(!state.security.messages.length){delete chats.emergency;return;}
- chats.emergency={name:'BASE — CANAL DE EMERGÊNCIA',status:'Canal de emergência · 09/04/2091',messages:state.security.messages,answers:[]};
+ chats.emergency={name:'BASE — CANAL DE EMERGÊNCIA',status:'Canal de emergência · '+state.security.messages.at(-1).date,messages:state.security.messages,answers:[]};
 }
 function sendEmergencyMessage(sender,text,index,phase='invasion') {
  const id=phase+'-'+index;if(state.security.messages.some(m=>m.id===id))return;
- const origin=phase==='invasion'?state.security.startedAt:state.security.finishedAt;
- const offset=Math.max(0,Math.floor((origin+(index+1)*SECURITY_MESSAGE_INTERVAL_MS-state.security.startedAt)/1000));
- const minutes=45+Math.floor(offset/60),seconds=offset%60;
- state.security.messages.push({id,from:'other',sender,text,time:'03:'+String(minutes).padStart(2,'0')+':'+String(seconds).padStart(2,'0'),date:'09/04/2091'});
+ state.security.messages.push({id,from:'other',sender,text,...gameMessageStamp()});
  syncEmergencyChat();
  const reading=state.unlocked && state.page==='mensagens' && state.openChat==='emergency';
  if(reading)state.security.readCount=state.security.messages.length;
