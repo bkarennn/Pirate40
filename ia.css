@@ -1,0 +1,15 @@
+/* PIRATE 40 — IA de sobrevivência */
+.ia-head{display:flex;align-items:center;gap:12px;border:1px solid #38616b;background:#102531;border-radius:12px;padding:14px;margin-bottom:12px}
+.ia-symbol{width:45px;height:45px;display:grid;place-items:center;flex-shrink:0;background:#1b514f;border:1px solid #59b8ab;border-radius:12px;color:#adfff1;font-size:1.6rem}
+.ia-log{height:min(46vh,350px);min-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:15px;background:#091722;border:1px solid #2b4e58;border-radius:12px;scrollbar-color:#3c7778 #091722}
+.ia-msg{max-width:87%;padding:12px 14px;border-radius:13px;font-size:.86rem;line-height:1.6;white-space:pre-line}
+.ia-msg.bot{align-self:flex-start;background:#213841;border:1px solid #335963;color:#daeee8;border-bottom-left-radius:3px}
+.ia-msg.user{align-self:flex-end;background:#1f564e;border:1px solid #397f73;color:#e0fff4;border-bottom-right-radius:3px}
+.ia-msg small{display:block;font-size:.65rem;letter-spacing:.09em;color:#8db6b6;margin-bottom:5px}
+.ia-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:12px}
+.ia-option{font:inherit;font-size:.78rem;color:#c7f6ea;text-align:left;min-height:47px;border:1px solid #3c706c;background:#142b32;border-radius:10px;padding:11px;cursor:pointer;transition:background .15s,border-color .15s}
+.ia-option:hover,.ia-option:focus-visible{background:#205149;border-color:#84dccb}
+.ia-footer{font-size:.69rem;line-height:1.5;color:#749ba4;margin-top:12px}
+.ia-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;flex-wrap:wrap}
+.ia-clear{border:none;background:transparent;color:#99cbc3;font:inherit;font-size:.74rem;cursor:pointer;text-decoration:underline}
+@media(max-width:560px){.ia-options{grid-template-columns:1fr}.ia-msg{max-width:95%}.ia-log{height:300px}}
