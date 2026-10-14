@@ -9,6 +9,7 @@ const STORAGE_KEY = 'pirate40-save-v1';
 const initialState = {
   profile: null,
   diary: [],
+  groupStory: null,
   diaryUnlocked: false,
   techBang: null,
   motherMessages: [],
@@ -122,6 +123,9 @@ content.addEventListener('click', e => {
 });
 content.addEventListener('change', e => { if (e.target.id === 'locatorToggle') { state.locator = e.target.checked; save(); render(); notify(state.locator ? 'Localização ativada' : 'Localização desativada', state.locator ? 'Seu dispositivo está transmitindo sua posição.' : 'Emissão de posição suspensa.', 'sistema'); }});
 function render() {
+  const nameField=state.page==='mensagens'?$('#dogNameInput'):null;
+  const namingFocused=nameField && document.activeElement===nameField;
+  const namingSelection=namingFocused?[nameField.selectionStart,nameField.selectionEnd]:null;
   const passwordField=state.page==='diario'?$('#diaryPassword'):null;
   const passwordEditing=passwordField && document.activeElement===passwordField;
   const passwordSelection=passwordEditing?[passwordField.selectionStart,passwordField.selectionEnd]:null;
@@ -138,9 +142,10 @@ function render() {
   $('#appTitle').textContent = apps.find(a => a.id === state.page)?.name || '';
   updateNotifications();
   $('#bottomLocation').textContent = state.locator ? 'LOCALIZADOR: EMISSÃO ATIVA' : 'LOCALIZADOR: DESLIGADO';
-  const pages = { inicio: renderInicio, ia: (typeof renderIA === 'function' ? renderIA : renderInicio), mensagens: renderMensagens, mapa: renderMapa, galeria: renderGaleria, notas: renderNotas, arquivos: renderArquivos, sistema: renderSistema, seguranca: renderSecurity, vitals: renderVitals, calendar: renderCalendar, diario: renderDiary, techbang: renderTechBang };
+  const pages = { inicio: renderInicio, ia: (typeof renderIA === 'function' ? renderIA : renderInicio), mensagens: renderMensagens, mapa: renderMapa, galeria: renderGaleria, notas: renderNotas, arquivos: renderArquivos, sistema: renderSistema, seguranca: ()=>renderSecurity()+dogCarePanel(), vitals: renderVitals, calendar: renderCalendar, diario: renderDiary, techbang: renderTechBang };
   content.innerHTML = pages[state.page]?.() || renderInicio();
   if(state.page==='diario'&&!state.diaryUnlocked){const field=$('#diaryPassword');if(field){field.value=diaryPasswordDraft;if(passwordEditing){field.focus();if(field.setSelectionRange)field.setSelectionRange(...passwordSelection);}}}
+  if(namingFocused){const field=$('#dogNameInput');if(field){field.focus();if(field.setSelectionRange)field.setSelectionRange(...namingSelection);}}
   content.scrollTop = 0;
   if(typeof updateSessionUI === 'function')updateSessionUI();
   if (state.page === 'mapa') mountWorldMap();
@@ -160,11 +165,11 @@ function renderMensagens() {
   if (state.openChat) {
     const id = state.openChat, chat = chats[id], sentIdx = state.sent[id];
     if(id === 'group') startDogConversation();
-    const messages = id === 'group' ? [...chat.messages,...BASE_HISTORY,...state.dogStory.messages] : [...chat.messages];
+    const messages = id === 'group' ? allBaseMessages() : [...chat.messages];
     if (sentIdx !== undefined) { const a = chat.answers[sentIdx]; messages.push({from:'mine',text:a.text,...(state.sentTimes[id]?.mine || {time:'03:45'})}); if (!state.replyDue[id]) messages.push({from:'other',text:a.response,...(state.sentTimes[id]?.other || {time:'03:46'})}); }
     return `<button class="back" data-back>← VOLTAR AOS CONTATOS</button>${messengerHeader(id,chat)}
-    <div class="chat">${!messages.length ? '<p class="empty-history">Nenhuma mensagem disponível neste histórico.</p>' : ''}${messages.map(m=>`<div class="bubble ${m.from==='mine'?'mine':''}">${m.sender ? `<strong class="message-sender">${escapeHtml(m.sender==='Pirate 40' ? playerName()+' · Pirate 40' : m.sender)}</strong>` : ''}${escapeHtml(dialogueText(m.text))}${m.photoId ? photoThumbnail(m.photoId, true) : ''}<small>${m.date ? escapeHtml(m.date)+' · ' : ''}${m.time}</small></div>`).join('')}${state.replyDue[id] ? typingIndicator(chat.name) : ''}${id === 'group' ? dogTyping() : ''}${id === 'emergency' ? '<div id="emergencyTyping"></div>' : ''}</div>
-    ${id === 'group' ? dogChoices() : id === 'amelie' ? amelieControls() : ''}
+    <div class="chat">${!messages.length ? '<p class="empty-history">Nenhuma mensagem disponível neste histórico.</p>' : ''}${messages.map(m=>`<div class="bubble ${m.from==='mine'?'mine':''}">${m.sender ? `<strong class="message-sender">${escapeHtml(m.sender==='Pirate 40' ? playerName()+' · Pirate 40' : m.sender)}</strong>` : ''}${escapeHtml(dialogueText(m.text))}${m.photoId ? photoThumbnail(m.photoId, true) : ''}<small>${m.date ? escapeHtml(m.date)+' · ' : ''}${m.time}</small></div>`).join('')}${state.replyDue[id] ? typingIndicator(chat.name) : ''}${id === 'group' ? dogTyping()+groupStoryTyping() : ''}${id === 'emergency' ? '<div id="emergencyTyping"></div>' : ''}</div>
+    ${id === 'group' ? dogChoices()+groupStoryControls() : id === 'amelie' ? amelieControls() : ''}
     ${sentIdx===undefined && chat.answers.length ? `<p class="muted" style="margin-top:15px">ESCOLHA UMA RESPOSTA:</p><div class="responses">${chat.answers.map((a,i)=>`<button class="secondary" data-reply="${i}">${escapeHtml(a.text)}</button>`).join('')}</div>` : `<p class="muted" style="margin-top:15px">${state.replyDue[id] ? 'Aguardando resposta…' : chat.answers.length ? 'Nenhuma nova resposta disponível.' : id === 'group' ? (state.dogStory.completed ? 'Histórico recuperado.' : 'Conversa da base') : 'Canal somente para leitura.'}</p>`}`;
   }
   return renderMessengerList();

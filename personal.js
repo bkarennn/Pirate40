@@ -1,8 +1,8 @@
 // Personal network metadata. Portrait paths can replace the initial avatars later.
 const CONTACTS = {
- esther:{name:'Esther',initials:'ES',color:'#568d82',portrait:null,info:'Integrante dos Piratas. Cuidadosa e prática.',mission:'Equipe A · Em missão com Gustavo: alimentos e suprimentos.'},
- kevin:{name:'Kevin',initials:'KE',color:'#ba8144',portrait:null,info:'Integrante dos Piratas. Brincalhão e espontâneo.',mission:'Equipe B · Em missão com Mãe: alimentos e suprimentos.'},
- gustavo:{name:'Gustavo',initials:'GU',color:'#727aba',portrait:null,info:'Integrante dos Piratas. Irônico, inteligente e ocasionalmente atrapalhado.',mission:'Equipe A · Em missão com Esther: alimentos e suprimentos.'},
+ esther:{name:'Esther',initials:'ES',color:'#568d82',portrait:null,info:'Integrante dos Piratas. Cuidadosa e prática. Namorada de Kevin.',mission:'Equipe A · Em missão com Gustavo: alimentos e suprimentos.'},
+ kevin:{name:'Kevin',initials:'KE',color:'#ba8144',portrait:null,info:'Integrante dos Piratas. Brincalhão e espontâneo. Namorado de Esther.',mission:'Equipe B · Em missão com Mãe: alimentos e suprimentos.'},
+ gustavo:{name:'Gustavo',initials:'GU',color:'#727aba',portrait:null,info:'Adolescente de 15 anos. Integrante dos Piratas. Irônico, inteligente e ocasionalmente atrapalhado. Mais reservado com Pirate 40, embora se preocupe.',mission:'Equipe A · Em missão com Esther: alimentos e suprimentos.'},
  mae:{name:'Mãe',initials:'MÃ',color:'#ac7193',portrait:null,info:'Mulher adulta, com mais de 40 anos. Responsável pela base oceânica e uma das lideranças da comunidade. Acolhedora, protetora e firme. Todos a chamam de Mãe por carinho, sem parentesco biológico.',mission:'Equipe B · Em missão com Kevin: alimentos e suprimentos.'}
 };
 // Future narrative reveal only: the supply teams are also preparing a birthday surprise.
@@ -17,9 +17,9 @@ for(const [id,contact] of Object.entries(CONTACTS)) {
 }
 for(const chat of Object.values(chats))for(const message of chat.messages)message.date ??= '31/03/2091';
 let messengerProfile=null;
-function contactData(id){return id==='player'?{name:playerName()+' · Pirate 40',initials:'40',color:'#487e9f',info:'Responsável pela segurança da base oceânica.',mission:'Base oceânica · Em serviço.'}:CONTACTS[id];}
+function contactData(id){if(['esther','gustavo'].includes(id)&&state.timeline?.events?.['group-missing'])return {...CONTACTS[id],mission:'Equipe A · Retornou à base oceânica.'};return id==='player'?{name:playerName()+' · Pirate 40',initials:'40',color:'#487e9f',info:'Responsável pela segurança da base oceânica.',mission:'Base oceânica · Em serviço.'}:CONTACTS[id];}
 function contactAvatar(id){const c=contactData(id);return `<span class="contact-avatar" style="--avatar-color:${c?.color || '#557d94'}">${c?.portrait ? `<img src="${escapeHtml(c.portrait)}" alt=""/>` : escapeHtml(c?.initials || (id==='group'?'BG':'◈'))}</span>`;}
-function messengerHeader(id,chat){return `<button class="messenger-header" ${id==='group'||CONTACTS[id]?'data-profile="'+id+'"':''}>${contactAvatar(id)}<span><strong>${escapeHtml(chat.name)}</strong><small>${escapeHtml(chat.status)}</small></span><span>ⓘ</span></button>`;}
+function messengerHeader(id,chat){return `<button class="messenger-header" ${id==='group'||CONTACTS[id]?'data-profile="'+id+'"':''}>${contactAvatar(id)}<span><strong>${escapeHtml(chat.name)}</strong><small>${escapeHtml(CONTACTS[id]?contactData(id).mission:chat.status)}</small></span><span>ⓘ</span></button>`;}
 
 function messageTimestamp(message){
  if(Number.isFinite(message?.receivedAt))return message.receivedAt;
@@ -28,7 +28,7 @@ function messageTimestamp(message){
  return Date.UTC(year,month-1,day,hour,minute,second)||0;
 }
 function latestChatMessage(id,chat){
- const messages=id==='group'?[...chat.messages,...BASE_HISTORY,...state.dogStory.messages]:[...chat.messages];
+ const messages=id==='group'?allBaseMessages():[...chat.messages];
  const answer=chat.answers[state.sent[id]],times=state.sentTimes[id];
  if(answer){messages.push({text:answer.text,...times?.mine});if(!state.replyDue[id])messages.push({text:answer.response,...times?.other});}
  return messages.reduce((latest,message)=>!latest||messageTimestamp(message)>=messageTimestamp(latest)?message:latest,null);

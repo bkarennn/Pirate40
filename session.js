@@ -69,7 +69,7 @@ function restartWholeStory(){
  stopSessionTimers();closePhoto(false);if($('#restartDialog').open)$('#restartDialog').close();
  // Remove only owned keys. Other applications' storage is never touched.
  localStorage.removeItem(STORAGE_KEY);localStorage.removeItem('pirate40-ia-v1');
- state=structuredClone(initialState);state.security=freshSecurity();delete chats.emergency;messengerProfile=null;diaryEditing=null;diaryQuery='';diaryPasswordDraft='';resetTimelineView();initializeNarrativeClock();mapView.x=350;mapView.y=100;mapView.zoom=1.2;
+ state=structuredClone(initialState);state.security=freshSecurity();delete chats.emergency;messengerProfile=null;diaryEditing=null;diaryQuery='';diaryPasswordDraft='';dogNameDraft='';resetTimelineView();initializeNarrativeClock();mapView.x=350;mapView.y=100;mapView.zoom=1.2;
  lastClosedSector=null;soundMuted=false;audioPrepared=false;
  document.dispatchEvent(new Event('pirate40:reset-session'));
  $('#securityFailure').classList.add('hidden');systemScreen.inert=false;scanScreen.inert=false;

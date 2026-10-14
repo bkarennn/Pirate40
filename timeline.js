@@ -1,5 +1,6 @@
 // Official schedule. Add definitions here; execution records live in the existing save.
 const STORY_EVENTS = [
+ ...Object.entries(GROUP_SCENES).map(([id,scene])=>({id:'group-'+id,at:scene.at,type:'interactive',chatId:'group',title:scene.title,description:scene.description})),
  {id:'mother-reminder',at:Date.UTC(2091,2,31,23),type:'message',chatId:'mae',title:'Mensagem da Mãe',description:'Desliga as luzes antes de deitar, você tem mania de deixar tudo ligado.'},
  {id:'tech-damaged',at:Date.UTC(2091,3,1,0,51),type:'equipment',title:'TECH BANG — FALHA CRÍTICA',description:'Integridade do equipamento comprometida. Comunicação com o equipamento interrompida.'},
  {id:'amelie-birthday',at:Date.UTC(2091,3,2),type:'message',chatId:'amelie',title:'Número desconhecido',description:'Feliz aniversário. Apesar de tudo.'},
@@ -14,7 +15,7 @@ const BIRTHDAY = {at:Date.UTC(2091,3,2),title:'Meu aniversário 🎂',descriptio
 let processingTimeline=false,accessOpen=false,calendarMonth=null,calendarDay=null,lastNarrativeRevision='',lastMapStage='';
 function stampAt(at){const date=new Date(at);return {date:date.toLocaleDateString('pt-BR',{timeZone:'UTC'}),time:date.toLocaleTimeString('pt-BR',{timeZone:'UTC',hour:'2-digit',minute:'2-digit',second:'2-digit'})};}
 function initializeNarrativeClock(){
- initializeEquipmentStory();
+ initializeEquipmentStory();initializeGroupStory();
  state.timeline ??= {events:{},messages:[],lastSeen:null,absence:null};
  state.timeline.events ??= {};state.timeline.messages ??= [];
  if(state.profile && !state.clock)startNarrativeClock();
@@ -53,13 +54,14 @@ function processNarrativeEvents(){
    state.dogStory.nextAt=0;
    if(changed && !(state.unlocked&&state.page==='mensagens'&&state.openChat==='group'))state.read=state.read.filter(id=>id!=='group');
   }
+  changed=processGroupStory()||changed;
   if(changed){save();lastNarrativeRevision='';}
  } finally {processingTimeline=false;}
  flushNarrativeNotifications();
 }
 function flushNarrativeNotifications(){
  if(!state.unlocked || document.hidden || !state.timeline)return;
- const pending=Object.values(state.timeline.events).filter(e=>!e.notified);
+ const pending=Object.values(state.timeline.events).filter(e=>!e.notified).sort((a,b)=>a.at-b.at);
  for(const event of pending){
   event.notified=true;
   const page=event.type==='equipment'?'techbang':event.type==='vitals'?'vitals':event.type==='location'?'mapa':'mensagens';
@@ -113,8 +115,8 @@ content.addEventListener('click',event=>{
 function resetTimelineView(){accessOpen=false;calendarMonth=null;calendarDay=null;lastNarrativeRevision='';lastMapStage='';}
 function updateNarrativeUI(){
  if(!state.unlocked)return;
- const revision=Object.keys(state.timeline.events).length+':'+state.dogStory.messages.length+':'+dayKey(state.gameTime);
- if(revision!==lastNarrativeRevision){lastNarrativeRevision=revision;if(['calendar','vitals','mapa','techbang'].includes(state.page))render();else if(state.page==='mensagens'&&state.openChat==='group')refreshDogChat();else if(state.page==='galeria'||state.page==='mensagens')render();}
+ const revision=Object.keys(state.timeline.events).length+':'+state.groupStory.messages.length+':'+state.dogStory.messages.length+':'+dayKey(state.gameTime);
+ if(revision!==lastNarrativeRevision){lastNarrativeRevision=revision;if(['calendar','vitals','mapa','techbang','seguranca'].includes(state.page))render();else if(state.page==='mensagens'&&state.openChat==='group')refreshDogChat();else if(state.page==='galeria'||state.page==='mensagens')render();}
  updateMessageBadges();
  if(state.page==='mapa'){
   const p=currentNarrativePosition(),marker=content.querySelector('.player-marker'),route=content.querySelector('#journeyRoute'),label=content.querySelector('#journeyLocation');

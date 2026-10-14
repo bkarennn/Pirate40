@@ -110,3 +110,10 @@ DIÁRIO PROTEGIDO E TECH BANG
 - Diário bloqueado com senha narrativa, normalização de acentos e caixa; desbloqueio persistido. O registro sobre controle mundial não recebe data inventada.
 - Reinício completo bloqueia o Diário e limpa conversas/telemetria. Reinício por invasão preserva os registros já recebidos.
 - Testes incluem senha, escolhas com recarregamento, offline antes/depois de cada evento, preservação e reinício.
+
+NOVAS CONVERSAS DA BASE
+- group-story.js define DVD (01/04 06:00), alimentação (06:15), nome do cachorro (06:20) e retorno à base (02/04 09:00). Intervalos narrativos de 3 segundos; processamento offline idempotente.
+- Histórico integrado ao grupo existente, ordenado por timestamp. Escolhas do cachorro e de Amélie permanecem preservadas.
+- Painel remoto no grupo e em Segurança. Rotina automática às 06:16 mantém os cuidados mesmo offline; nunca há punição ao cachorro. Suprimento inteiramente fictício da base.
+- Nome de até 24 caracteres, sem geração automática. Três respostas à descoberta do desaparecimento; apenas uma escolha. A conexão temporal ainda não é revelada.
+- Estado em groupStory no mesmo salvamento. Reinício por invasão preserva os registros; Reiniciar História remove-os. Nenhum pareamento Wi-Fi adicionado.
