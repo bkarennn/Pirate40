@@ -51,5 +51,5 @@ document.addEventListener('pirate40:chat-tick',()=>{
  if(s.stage===1)s.revealed=true;
  s.stage++;s.nextAt=s.stage===2?Date.now()+typingDelay(AMELIE_MESSAGES[2]):0;
  syncPersonalChats();save();updateMessageBadges();
- if(state.unlocked&&state.page==='mensagens'&&state.openChat==='amelie'){render();const log=content.querySelector('.chat');if(log)log.scrollTop=log.scrollHeight;}
+ if(state.unlocked&&state.page==='mensagens'&&(state.openChat==='amelie'||!state.openChat)){render();const log=content.querySelector('.chat');if(log)log.scrollTop=log.scrollHeight;}
 });

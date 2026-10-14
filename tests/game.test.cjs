@@ -79,6 +79,18 @@ late.storage.set('other-app','keep');late.run('restartWholeStory()');assert.equa
 console.log('PASS: official start; persistent offline clock; midnight; scheduled dog and both choices; photo gate; vital history; 06:00 transit and 11:00 France; birthday; idempotent events/notifications; real summaries; real-time alarm; legacy apps and selective reset.');
 globalThis.testDone=Promise.resolve();
 
+const usability=boot();usability.run('activate();state.page="mapa";render()');assert.ok(usability.el('#content').innerHTML.includes('Desativar localização'));
+usability.fire('document','click',{closest:s=>s==='[data-locator-toggle]'?{}:null});assert.equal(usability.run('state.locator'),false);assert.ok(usability.el('#content').innerHTML.includes('Ativar localização'));
+const locationReload=boot(usability.storage,usability.clock.now);assert.equal(locationReload.run('state.locator'),false);
+usability.run('state.page="diario";render()');usability.el('#diaryPassword').value='am';usability.fire('#content','input',{id:'diaryPassword',value:'am'});usability.run('render()');assert.equal(usability.el('#diaryPassword').value,'am');
+usability.el('#diaryPassword').value='amelie';usability.fire('#content','submit',{id:'diaryUnlockForm'});assert.equal(usability.run('state.diaryUnlocked'),true);assert.equal(usability.run('diaryPasswordDraft'),'');
+assert.equal(usability.run('sortedConversations()[0].id'),'mae');
+usability.run('advanceGameTime(92)');assert.equal(usability.run('sortedConversations()[0].id'),'group');
+usability.run('state.page="mensagens";state.openChat="esther";render()');usability.fire('#content','click',{closest:s=>s==='[data-reply]'?{dataset:{reply:'0'}}:null});assert.equal(usability.run('sortedConversations()[0].id'),'esther');
+usability.run('state.openChat=null;render()');usability.clock.now+=4000;usability.run('tickConversations()');assert.ok(usability.el('#content').innerHTML.includes('Para de brincar.'));
+usability.run('advanceGameTime(1500)');assert.equal(usability.run('sortedConversations()[0].id'),'amelie');usability.run('save()');const sortedReload=boot(usability.storage,usability.clock.now);assert.equal(sortedReload.run('sortedConversations()[0].id'),'amelie');
+console.log('PASS: location toggle and reload, diary typing survives render, password submit, conversation chronology and live previews.');
+
 // Password gate, permanent equipment telemetry and scheduled interactive messages.
 const protectedGame=boot();protectedGame.run('activate();state.page="diario";render()');
 assert.ok(protectedGame.el('#content').innerHTML.includes('Este arquivo está protegido.'));

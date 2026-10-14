@@ -20,9 +20,23 @@ let messengerProfile=null;
 function contactData(id){return id==='player'?{name:playerName()+' · Pirate 40',initials:'40',color:'#487e9f',info:'Responsável pela segurança da base oceânica.',mission:'Base oceânica · Em serviço.'}:CONTACTS[id];}
 function contactAvatar(id){const c=contactData(id);return `<span class="contact-avatar" style="--avatar-color:${c?.color || '#557d94'}">${c?.portrait ? `<img src="${escapeHtml(c.portrait)}" alt=""/>` : escapeHtml(c?.initials || (id==='group'?'BG':'◈'))}</span>`;}
 function messengerHeader(id,chat){return `<button class="messenger-header" ${id==='group'||CONTACTS[id]?'data-profile="'+id+'"':''}>${contactAvatar(id)}<span><strong>${escapeHtml(chat.name)}</strong><small>${escapeHtml(chat.status)}</small></span><span>ⓘ</span></button>`;}
+
+function messageTimestamp(message){
+ if(Number.isFinite(message?.receivedAt))return message.receivedAt;
+ if(!message?.date)return 0;
+ const [day,month,year]=message.date.split('/').map(Number),[hour=0,minute=0,second=0]=(message.time||'').split(':').map(Number);
+ return Date.UTC(year,month-1,day,hour,minute,second)||0;
+}
+function latestChatMessage(id,chat){
+ const messages=id==='group'?[...chat.messages,...BASE_HISTORY,...state.dogStory.messages]:[...chat.messages];
+ const answer=chat.answers[state.sent[id]],times=state.sentTimes[id];
+ if(answer){messages.push({text:answer.text,...times?.mine});if(!state.replyDue[id])messages.push({text:answer.response,...times?.other});}
+ return messages.reduce((latest,message)=>!latest||messageTimestamp(message)>=messageTimestamp(latest)?message:latest,null);
+}
+function sortedConversations(){return Object.entries(chats).map(([id,chat])=>({id,chat,last:latestChatMessage(id,chat)})).sort((a,b)=>messageTimestamp(b.last)-messageTimestamp(a.last));}
+
 function renderMessengerList(){
- return head('Mensagens','NEXUS · REDE DOS PIRATAS')+'<p class="muted">Seus canais, suas pessoas.</p><div class="list messenger-list">'+Object.entries(chats).map(([id,chat])=>{
- const last=id==='group'?(state.dogStory.messages.at(-1)||BASE_HISTORY.at(-1)):chat.messages.at(-1);
+ return head('Mensagens','NEXUS · REDE DOS PIRATAS')+'<p class="muted">Seus canais, suas pessoas.</p><div class="list messenger-list">'+sortedConversations().map(({id,chat,last})=>{
  const unread=id==='emergency'?Math.max(0,state.security.messages.length-state.security.readCount):!!last&&!state.read.includes(id);
  return `<article class="contact-row"><button class="avatar-button" ${CONTACTS[id]||id==='group'?'data-profile="'+id+'"':'data-chat="'+id+'"'} aria-label="Informações de ${escapeHtml(chat.name)}">${contactAvatar(id)}</button><button class="chat-item" data-chat="${id}"><span><strong>${escapeHtml(chat.name)} ${unread?'<b class="unread-dot" aria-label="Não lida">●</b>':''}</strong><small>${escapeHtml(dialogueText(last?.text || 'Nenhuma mensagem disponível neste histórico.'))}</small></span><span class="meta">${last?.time || ''} →</span></button></article>`;
  }).join('')+'</div>';
@@ -37,7 +51,7 @@ function renderMessengerProfile(id){
 // Authored 2091 records are immutable; player notes live exclusively in state.diary.
 const ORIGINAL_DIARY = Object.freeze({id:'base-2091',title:'Mais um dia na base.',at:Date.UTC(2091,2,31,23),body:'Hoje o pessoal saiu para procurar alimentos e alguns suprimentos.\n\nEsther foi com Gustavo, enquanto Kevin acompanhou a Mãe.\n\nFiquei responsável por cuidar da base até eles voltarem.\n\nDisseram que não deve demorar muito.\n\nPor enquanto está tudo tranquilo.'});
 const CONTROL_DIARY = Object.freeze({id:'world-control',title:'O dia em que tudo mudou',at:null,body:"Eu ainda lembro de quando tudo aconteceu.\n\nNo começo, ninguém entendeu direito.\n\nAs pessoas simplesmente começaram a agir de maneira estranha. Algumas pararam de responder, outras continuaram andando como se nada estivesse acontecendo.\n\nDepois vieram as ordens.\n\nFoi quando percebemos que os chips nunca foram apenas aquilo que nos prometeram.\n\nNão sei se algum dia o mundo vai voltar ao normal."});
-let diaryEditing=null, diaryQuery='';
+let diaryEditing=null, diaryQuery='', diaryPasswordDraft='';
 function diaryEntriesMarkup(){
  if(!state.diaryUnlocked)return '';
  const match=n=>(n.title+' '+n.body).toLocaleLowerCase('pt-BR').includes(diaryQuery.toLocaleLowerCase('pt-BR'));
@@ -46,12 +60,13 @@ function diaryEntriesMarkup(){
  return '<h3>Registros de 2091</h3>'+([ORIGINAL_DIARY,CONTROL_DIARY].filter(match).map(n=>card(n,true)).join('')||'<p class="muted">Nenhum registro encontrado.</p>')+'<h3>Minhas descobertas · conexão de 2026</h3>'+ (notes.map(n=>card(n,false)).join('')||'<p class="muted">Nenhuma anotação pessoal encontrada.</p>');
 }
 function renderDiary(){
- if(!state.diaryUnlocked)return head('DIÁRIO PESSOAL')+'<form id="diaryUnlockForm" class="panel diary-lock"><span class="widget-icon">'+icon('lock')+'</span><p>Este arquivo está protegido.</p><label>Senha<input id="diaryPassword" class="input" type="password" autocomplete="off" maxlength="100" required/></label><p id="diaryLockFeedback" role="status"></p><button class="primary" type="submit">Desbloquear</button></form>';
+ if(!state.diaryUnlocked)return head('DIÁRIO PESSOAL')+'<form id="diaryUnlockForm" class="panel diary-lock"><span class="widget-icon">'+icon('lock')+'</span><p>Este arquivo está protegido.</p><label for="diaryPassword">Senha</label><input id="diaryPassword" name="diaryPassword" class="input" type="password" placeholder="Digite a senha" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="100" required/><button type="button" class="secondary" id="showDiaryPassword" aria-pressed="false">Mostrar senha</button><p id="diaryLockFeedback" role="status"></p><button class="primary" type="submit">Desbloquear</button></form>';
  const edit=state.diary.find(n=>n.id===diaryEditing);
  return head('Diário','ENTRE DOIS TEMPOS')+`<p class="muted">Memórias de Pirate 40 e descobertas de quem está conectado em 2026.</p><label class="diary-search">Pesquisar registros<input class="input" id="diarySearch" type="search" value="${escapeHtml(diaryQuery)}" placeholder="Título ou texto"/></label><section class="panel"><h3>${edit?'Editar descoberta':'Nova anotação pessoal · 2026'}</h3><label>Título<input class="input" id="diaryTitle" maxlength="100" value="${escapeHtml(edit?.title || '')}"/></label><label>Texto<textarea id="diaryBody" maxlength="20000">${escapeHtml(edit?.body || '')}</textarea></label><p class="muted" id="diaryFeedback" role="status">Só você escreve suas descobertas. A data usa o relógio de 2091.</p><div class="responses"><button class="primary" id="saveDiary">Salvar</button>${edit?'<button class="secondary" id="cancelDiary">Cancelar edição</button>':''}</div></section><div id="diaryEntries">${diaryEntriesMarkup()}</div>`;
 }
-content.addEventListener('input',e=>{if(e.target.id==='diarySearch'){diaryQuery=e.target.value;$('#diaryEntries').innerHTML=diaryEntriesMarkup();}});
+content.addEventListener('input',e=>{if(e.target.id==='diaryPassword')diaryPasswordDraft=e.target.value;if(e.target.id==='diarySearch'){diaryQuery=e.target.value;$('#diaryEntries').innerHTML=diaryEntriesMarkup();}});
 content.addEventListener('click',e=>{
+ if(e.target.id==='showDiaryPassword'){const field=$('#diaryPassword');const show=field.type==='password';field.type=show?'text':'password';e.target.textContent=show?'Ocultar senha':'Mostrar senha';e.target.setAttribute('aria-pressed',String(show));field.focus();return;}
  const profile=e.target.closest('[data-profile]');if(profile){messengerProfile=profile.dataset.profile;render();return;}
  if(e.target.closest('[data-close-profile]')){messengerProfile=null;render();return;}
  if(!state.diaryUnlocked)return;
@@ -72,5 +87,5 @@ content.addEventListener('submit',e=>{
  if(e.target.id!=='diaryUnlockForm')return;e.preventDefault();
  const value=$('#diaryPassword').value.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
  if(value!=='amelie'){$('#diaryLockFeedback').textContent='Senha inválida. Acesso negado.';return;}
- state.diaryUnlocked=true;save();render();
+ state.diaryUnlocked=true;diaryPasswordDraft='';save();render();
 });

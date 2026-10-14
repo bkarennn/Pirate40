@@ -122,6 +122,9 @@ content.addEventListener('click', e => {
 });
 content.addEventListener('change', e => { if (e.target.id === 'locatorToggle') { state.locator = e.target.checked; save(); render(); notify(state.locator ? 'Localização ativada' : 'Localização desativada', state.locator ? 'Seu dispositivo está transmitindo sua posição.' : 'Emissão de posição suspensa.', 'sistema'); }});
 function render() {
+  const passwordField=state.page==='diario'?$('#diaryPassword'):null;
+  const passwordEditing=passwordField && document.activeElement===passwordField;
+  const passwordSelection=passwordEditing?[passwordField.selectionStart,passwordField.selectionEnd]:null;
   if(state.page!=='mensagens') messengerProfile=null;
   if (typeof mapCleanup === 'function') mapCleanup();
   if (typeof trackSecurityActivity === 'function') { if (state.page !== 'ia') trackSecurityActivity(state.page); checkSecurityProgress(); }
@@ -137,6 +140,7 @@ function render() {
   $('#bottomLocation').textContent = state.locator ? 'LOCALIZADOR: EMISSÃO ATIVA' : 'LOCALIZADOR: DESLIGADO';
   const pages = { inicio: renderInicio, ia: (typeof renderIA === 'function' ? renderIA : renderInicio), mensagens: renderMensagens, mapa: renderMapa, galeria: renderGaleria, notas: renderNotas, arquivos: renderArquivos, sistema: renderSistema, seguranca: renderSecurity, vitals: renderVitals, calendar: renderCalendar, diario: renderDiary, techbang: renderTechBang };
   content.innerHTML = pages[state.page]?.() || renderInicio();
+  if(state.page==='diario'&&!state.diaryUnlocked){const field=$('#diaryPassword');if(field){field.value=diaryPasswordDraft;if(passwordEditing){field.focus();if(field.setSelectionRange)field.setSelectionRange(...passwordSelection);}}}
   content.scrollTop = 0;
   if(typeof updateSessionUI === 'function')updateSessionUI();
   if (state.page === 'mapa') mountWorldMap();
@@ -165,7 +169,7 @@ function renderMensagens() {
   }
   return renderMessengerList();
 }
-function renderMapa() { return renderWorldMap(); }
+function renderMapa() { return locationControl()+renderWorldMap(); }
 function renderGaleria() {
   return head('Galeria','SUAS MEMÓRIAS') + '<div class="gallery-intro"><h3>Pequenos pedaços da vida.</h3><p class="muted">' + availablePhotos().length + ' fotografias · toque para ampliar</p></div><div class="photo-grid">' + availablePhotos().map(photo => photoThumbnail(photo.id)).join('') + '</div><div class="gallery-albums"><span>Base</span><span>Registros</span></div>';
 }
@@ -179,9 +183,10 @@ function renderArquivos() {
   <div class="file-item"><strong>PROTOTIPO_40.dat</strong><p>Arquivo encriptado. O dispositivo original é necessário para leitura.</p><span class="meta">ACESSO INDISPONÍVEL</span></div>
   <div class="file-item"><strong>BASE_INTERNA.map</strong><p>Fragmento de planta cartográfica indisponível.</p><span class="meta">ARQUIVO CORROMPIDO</span></div>`;
 }
+function locationControl(){return '<button type="button" class="secondary location-control" data-locator-toggle aria-pressed="'+state.locator+'">'+(state.locator?'Desativar localização':'Ativar localização')+'</button>';}
 function renderSistema() {
   return `${head('Configurações','NEXUS / P40')}
-  <div class="panel"><p class="eyebrow">CONFIGURAÇÃO DE RASTREIO</p><div class="row" style="margin-top:12px"><div><strong>Localizador</strong><p class="muted">Transmitir posição pela rede</p></div><label class="switch"><input id="locatorToggle" type="checkbox" ${state.locator?'checked':''}/> <span>${state.locator?'ATIVO':'INATIVO'}</span></label></div></div>
+  <div class="panel"><p class="eyebrow">CONFIGURAÇÃO DE RASTREIO</p><div class="row" style="margin-top:12px"><div><strong>Localizador</strong><p class="muted">Transmitir posição pela rede</p></div>${locationControl()}</div></div>
   <div class="panel"><p class="line">PROPRIETÁRIO: <strong>${escapeHtml(playerName())} · PIRATE 40</strong></p><p class="line">ANO: <strong>2091</strong></p><p class="line">BIOMETRIA: <strong>VERIFICADA (SIMULAÇÃO)</strong></p><p class="line">REDE: <strong>MODO LOCAL</strong></p><p class="muted" style="margin-top:12px">As decisões e notas ficam salvas apenas neste navegador por localStorage.</p></div>
   <div class="panel"><p class="eyebrow">PAPEL DE PAREDE</p><div class="wallpaper-options">${['aero','dusk','tide'].map((w,i) => `<button data-wallpaper="${w}" aria-pressed="${state.wallpaper === w}" class="wallpaper-choice ${w}">${['Aurora','Entardecer','Maré'][i]}</button>`).join('')}</div></div><div class="panel"><p class="line">LOCALIZAÇÃO: <strong>Instalação desconhecida · oceano aberto</strong></p><p class="line">SEGURANÇA: <strong>Reconhecimento facial local simulado</strong></p></div>
   <div class="panel"><h3>Gerenciamento da Partida</h3><p class="muted">Começar novamente, com uma nova identidade e todo o progresso reiniciado.</p><button id="resetSave" class="danger">REINICIAR HISTÓRIA</button></div>`;
@@ -254,6 +259,7 @@ document.addEventListener('click', e => {
   if (e.target.closest('#closeNotifications')) { $('#notificationPanel').classList.add('hidden'); $('#notificationButton').setAttribute('aria-expanded','false'); }
   const notice = e.target.closest('[data-notification-page]');
   if (notice && state.unlocked) { messengerProfile=null; state.page = notice.dataset.notificationPage; state.openChat = notice.dataset.notificationChat || null; $('#notificationPanel').classList.add('hidden'); $('#notificationButton').setAttribute('aria-expanded','false'); $('#toastRegion').innerHTML = ''; save(); render(); }
+  if(e.target.closest('[data-locator-toggle]') && state.unlocked){state.locator=!state.locator;save();render();notify(state.locator?'Localização ativada':'Localização desativada',state.locator?'Seu dispositivo está transmitindo sua posição.':'Emissão de posição suspensa.','sistema');}
   const wallpaper = e.target.closest('[data-wallpaper]');
   if (wallpaper) { state.wallpaper = wallpaper.dataset.wallpaper; save(); render(); }
 });
@@ -285,7 +291,7 @@ function tickConversations() {
    const reading = state.unlocked && state.page === 'mensagens' && state.openChat === id;
    if (!reading) state.read = state.read.filter(item => item !== id);
    save();
-   if (reading) { render(); const log=content.querySelector('.chat');if(log)log.scrollTop=log.scrollHeight; }
+   if (reading || (state.unlocked && state.page==='mensagens' && !state.openChat)) { render(); const log=content.querySelector('.chat');if(log)log.scrollTop=log.scrollHeight; }
    updateMessageBadges();
  }
  document.dispatchEvent(new Event('pirate40:chat-tick'));
