@@ -103,3 +103,10 @@ CONTATOS E DIÁRIO
 - ORIGINAL_DIARY é imutável. Apenas state.diary permite criar, editar e excluir registros pessoais; a interface diferencia a conexão de 2026 e as datas narrativas de 2091.
 - As descobertas sobrevivem ao recarregamento e ao reinício por invasão, mas são apagadas no reinício completo da história.
 - Testes: node tests/game.test.cjs (inclui perfis, integrantes, histórico, Diário e regressões).
+
+DIÁRIO PROTEGIDO E TECH BANG
+- equipment.js concentra telemetria fictícia, estado inicial editável em TECH_INITIAL e conversa interativa de aniversário. Não há controles de disparo.
+- Eventos em timeline.js: lembrete privado da Mãe (31/03, 23:00), falha permanente da Tech Bang (01/04, 00:51), número desconhecido (02/04, 00:00). Processamento offline idempotente; respostas dependem de escolha.
+- Diário bloqueado com senha narrativa, normalização de acentos e caixa; desbloqueio persistido. O registro sobre controle mundial não recebe data inventada.
+- Reinício completo bloqueia o Diário e limpa conversas/telemetria. Reinício por invasão preserva os registros já recebidos.
+- Testes incluem senha, escolhas com recarregamento, offline antes/depois de cada evento, preservação e reinício.

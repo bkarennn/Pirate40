@@ -35,7 +35,7 @@ function boot(storage = new Map(), now = 1000000, newGame = false) {
     document:{querySelector:el,querySelectorAll:()=>[],getElementById:id=>el('#'+id),addEventListener:(t,f)=>el('document').addEventListener(t,f),dispatchEvent:e=>fire('document',e.type)},
     location:{reload(){}},addEventListener:(t,f)=>el('window').addEventListener(t,f)});
   context.window=context;
-  for(const file of ['characters.js','photos.js','script.js','personal.js','ia.js','world-data.js','map.js','timeline.js','session.js','security.js']) new vm.Script(fs.readFileSync(path.join(root,file),'utf8'),{filename:file}).runInContext(context);
+  for(const file of ['characters.js','photos.js','script.js','personal.js','ia.js','world-data.js','map.js','equipment.js','timeline.js','session.js','security.js']) new vm.Script(fs.readFileSync(path.join(root,file),'utf8'),{filename:file}).runInContext(context);
   return {el,fire,clock,storage,audioControl,timeouts,run:code=>vm.runInContext(code,context)};
 }
 
@@ -44,7 +44,7 @@ function pick(g,choice){g.fire('#content','click',{closest:s=>s==='[data-dog-cho
 const fresh=boot(new Map(),1000000,true);
 assert.equal(fresh.run('getGameDate().toISOString()'),'2091-03-31T23:00:00.000Z');fresh.clock.now+=3600000;assert.equal(fresh.run('getGameDate().toISOString()'),'2091-03-31T23:00:00.000Z');fresh.run('activate()');assert.equal(fresh.run('state.unlocked'),false);
 fresh.el('#playerName').value='Alex';fresh.el('#playerPronouns').value='neutral';fresh.fire('#identityForm','submit');assert.equal(fresh.run('state.profile.name'),'Alex');assert.equal(fresh.run('state.unlocked'),false);fresh.timeouts[0]();fresh.timeouts.at(-1)();assert.equal(fresh.run('state.unlocked'),true);
-const g=boot();g.run('activate()');assert.equal(g.run('apps.length'),11);g.run('apps.forEach(a=>{state.page=a.id;render();if(!content.innerHTML)throw Error(a.id);})');
+const g=boot();g.run('activate()');assert.equal(g.run('apps.length'),12);g.run('apps.forEach(a=>{state.page=a.id;render();if(!content.innerHTML)throw Error(a.id);})');
 assert.equal(g.run('getGameDate().toISOString()'),'2091-03-31T23:00:00.000Z');g.run('state.page="mensagens";state.openChat="group";render()');assert.equal(g.run('state.dogStory.messages.length'),0);assert.ok(!g.run('availablePhotos().some(p=>p.id==="dog")'));
 minutes(g,60);assert.equal(g.run('getGameDate().toISOString()'),'2091-04-01T00:00:00.000Z');assert.equal(g.run('state.dogStory.messages.length'),0);
 minutes(g,31);assert.equal(g.run('state.dogStory.messages.length'),1);assert.equal(g.run('state.dogStory.messages[0].time'),'00:31:00');assert.equal(g.run('state.dogStory.photoUnlocked'),false);
@@ -61,7 +61,7 @@ bio.run('state.page="vitals";render()');assert.ok(bio.el('#content').innerHTML.i
 // Offline catch-up uses saved wall-clock anchor, without ticking any intervals.
 const away=boot();away.run('activate();advanceGameTime(100);endNarrativeAccess();save()');const savedAt=away.clock.now;
 const six=boot(new Map(away.storage),savedAt+320*60000);assert.equal(six.run('getGameDate().toISOString()'),'2091-04-01T06:00:00.000Z');assert.equal(six.run('currentNarrativePosition().stage'),'transit');const x=six.run('currentNarrativePosition().x');assert.ok(x<350&&x>182.35);assert.equal(six.run('state.dogStory.choice'),null);assert.equal(six.run('state.dogStory.messages.length'),8);
-const late=boot(new Map(away.storage),savedAt+620*60000);assert.equal(late.run('getGameDate().toISOString()'),'2091-04-01T11:00:00.000Z');assert.equal(late.run('currentNarrativePosition().stage'),'france');assert.equal(late.run('currentNarrativePosition().x'),182.35);assert.equal(late.run('currentNarrativePosition().y'),41.14);assert.equal(late.run('Object.keys(state.timeline.events).length'),6);assert.equal(late.run('state.timeline.events["journey-end"].notified'),false);
+const late=boot(new Map(away.storage),savedAt+620*60000);assert.equal(late.run('getGameDate().toISOString()'),'2091-04-01T11:00:00.000Z');assert.equal(late.run('currentNarrativePosition().stage'),'france');assert.equal(late.run('currentNarrativePosition().x'),182.35);assert.equal(late.run('currentNarrativePosition().y'),41.14);assert.equal(late.run('Object.keys(state.timeline.events).length'),8);assert.equal(late.run('state.timeline.events["journey-end"].notified'),false);
 late.run('activate()');const summary=late.run('narrativeSummary("away")');for(const time of ['00:49:00','00:50:00','01:00:00','10:00:00'])assert.ok(summary.includes(time));assert.ok(summary.includes('França'));assert.ok(!summary.includes('sequestro'));const notes=late.run('state.notifications.length');late.run('processNarrativeEvents();processNarrativeEvents()');assert.equal(late.run('state.notifications.length'),notes);assert.equal(late.run('state.timeline.events["journey-end"].read'),false);
 const again=boot(late.storage,late.clock.now);again.run('activate();processNarrativeEvents()');assert.equal(again.run('state.notifications.length'),notes);assert.equal(again.run('state.dogStory.messages.length'),8);
 const noSpoilers=boot();noSpoilers.run('activate()');assert.ok(!noSpoilers.run('narrativeSummary("recent")').includes('França'));assert.equal(noSpoilers.run('narrativeSummary("away")'),'Nenhuma alteração significativa foi registrada durante sua ausência.');
@@ -79,6 +79,36 @@ late.storage.set('other-app','keep');late.run('restartWholeStory()');assert.equa
 console.log('PASS: official start; persistent offline clock; midnight; scheduled dog and both choices; photo gate; vital history; 06:00 transit and 11:00 France; birthday; idempotent events/notifications; real summaries; real-time alarm; legacy apps and selective reset.');
 globalThis.testDone=Promise.resolve();
 
+// Password gate, permanent equipment telemetry and scheduled interactive messages.
+const protectedGame=boot();protectedGame.run('activate();state.page="diario";render()');
+assert.ok(protectedGame.el('#content').innerHTML.includes('Este arquivo está protegido.'));
+assert.ok(!protectedGame.el('#content').innerHTML.includes('Mais um dia na base.'));
+assert.ok(!protectedGame.el('#content').innerHTML.includes('Amélie'));
+protectedGame.el('#diaryPassword').value='errada';protectedGame.fire('#content','submit',{id:'diaryUnlockForm'});
+assert.equal(protectedGame.run('state.diaryUnlocked'),false);assert.equal(protectedGame.el('#diaryLockFeedback').textContent,'Senha inválida. Acesso negado.');
+for(const password of ['Amélie','amelie','AMÉLIE','AmElIe']){
+ protectedGame.run('state.diaryUnlocked=false;render()');protectedGame.el('#diaryPassword').value=password;protectedGame.fire('#content','submit',{id:'diaryUnlockForm'});assert.equal(protectedGame.run('state.diaryUnlocked'),true);
+}
+assert.ok(protectedGame.el('#content').innerHTML.includes('DATA DO REGISTRO NÃO DEFINIDA'));assert.ok(protectedGame.el('#content').innerHTML.includes('O dia em que tudo mudou'));
+assert.equal(protectedGame.run('state.motherMessages.length'),1);assert.equal(protectedGame.run('state.motherMessages[0].time'),'23:00:00');assert.equal(protectedGame.run('state.motherMessages[0].date'),'31/03/2091');
+assert.equal(protectedGame.run('state.techBang.battery'),85);assert.equal(protectedGame.run('state.techBang.shots'),12);
+protectedGame.run('advanceGameTime(110)');assert.equal(protectedGame.run('state.techBang.integrity'),100);assert.ok(!protectedGame.run('narrativeSummary("recent")').includes('Integridade do equipamento comprometida'));
+const damaged=boot(protectedGame.storage,protectedGame.clock.now+60000);damaged.run('activate();state.page="techbang";render()');
+assert.equal(damaged.run('state.techBang.integrity'),0);assert.equal(damaged.run('state.techBang.shots'),null);assert.equal(damaged.run('state.techBang.history.length'),2);assert.equal(damaged.run('state.diaryUnlocked'),true);
+assert.ok(damaged.run('narrativeSummary("recent")').includes('00:51:00'));assert.ok(damaged.el('#content').innerHTML.includes('sinal perdido'));
+damaged.run('processNarrativeEvents();processNarrativeEvents();save()');assert.equal(damaged.run('state.techBang.history.length'),2);assert.equal(damaged.run('state.notifications.filter(n=>n.title==="TECH BANG — FALHA CRÍTICA").length'),1);
+const birthday=boot(damaged.storage,damaged.clock.now+(23*60+9)*60000);birthday.run('activate()');assert.equal(birthday.run('getGameDate().toISOString()'),'2091-04-02T00:00:00.000Z');
+assert.equal(birthday.run('chats.amelie.name'),'Número desconhecido');assert.equal(birthday.run('state.amelieStory.messages.length'),1);assert.equal(birthday.run('state.motherMessages.length'),1);
+birthday.clock.now+=3600000;birthday.run('tickConversations();processNarrativeEvents()');assert.equal(birthday.run('state.amelieStory.messages.length'),1);
+birthday.run('state.page="mensagens";state.openChat="amelie";render()');
+function answerAmelie(g,index){g.fire('#content','click',{closest:s=>s==='[data-amelie-reply]'?{dataset:{amelieReply:String(index)}}:null});}
+answerAmelie(birthday,0);answerAmelie(birthday,0);assert.equal(birthday.run('state.amelieStory.messages.length'),2);
+const dialogReload=boot(birthday.storage,birthday.clock.now+4000);dialogReload.run('activate();state.page="mensagens";state.openChat="amelie";tickConversations();render()');assert.equal(dialogReload.run('state.amelieStory.stage'),1);assert.equal(dialogReload.run('chats.amelie.name'),'Número desconhecido');
+answerAmelie(dialogReload,1);dialogReload.clock.now+=4000;dialogReload.run('tickConversations()');assert.equal(dialogReload.run('chats.amelie.name'),'Amélie');dialogReload.clock.now+=4000;dialogReload.run('tickConversations()');assert.equal(dialogReload.run('state.amelieStory.messages.length'),6);assert.equal(dialogReload.run('state.amelieStory.stage'),3);
+dialogReload.run('startSecurityAlarm()');dialogReload.clock.now+=90000;dialogReload.run('securityTick()');dialogReload.clock.now+=4500;dialogReload.run('securityTick()');assert.equal(dialogReload.run('state.techBang.integrity'),0);assert.equal(dialogReload.run('state.diaryUnlocked'),true);assert.equal(dialogReload.run('state.amelieStory.stage'),3);
+dialogReload.run('restartWholeStory()');assert.equal(dialogReload.run('state.diaryUnlocked'),false);assert.equal(dialogReload.run('state.techBang.integrity'),100);assert.equal(dialogReload.run('state.motherMessages.length'),0);assert.equal(dialogReload.run('chats.amelie'),undefined);assert.equal(dialogReload.run('state.techBang.history.length'),1);
+console.log('PASS: diary password variants and persistence, historical record, mother once, offline damage, no duplicate notifications, birthday choices with reload, gradual reveal, security preservation and complete reset.');
+
 // Personal network, immutable historical messages and player-owned diary.
 const personal=boot();personal.run('activate()');
 for(const id of ['esther','kevin','gustavo','mae']){
@@ -93,10 +123,10 @@ for(const id of ['esther','kevin','gustavo','mae']){
 personal.fire('#content','click',{closest:s=>s==='[data-profile]'?{dataset:{profile:'group'}}:null});
 assert.ok(personal.el('#content').innerHTML.includes('15 de janeiro de 2090'));
 assert.equal((personal.el('#content').innerHTML.match(/data-profile="(?:player|esther|kevin|gustavo|mae)"/g)||[]).length,5);
-personal.run('messengerProfile=null;state.openChat="mae";render()');assert.ok(personal.el('#content').innerHTML.includes('Nenhuma mensagem disponível neste histórico.'));
+personal.run('messengerProfile=null;state.openChat="gustavo";render()');assert.ok(personal.el('#content').innerHTML.includes('Nenhuma mensagem disponível neste histórico.'));
 personal.run('state.openChat="group";render()');assert.ok(personal.el('#content').innerHTML.includes('Tô preso no banheiro'));const noticeCount=personal.run('state.notifications.length');personal.run('render();save()');assert.equal(personal.run('state.notifications.length'),noticeCount);
 const historic=boot(personal.storage,personal.clock.now);historic.run('activate();state.page="mensagens";state.openChat="group";render()');assert.equal((historic.el('#content').innerHTML.match(/Tô preso no banheiro/g)||[]).length,1);
-personal.run('state.page="diario";render()');assert.ok(personal.el('#content').innerHTML.includes('Mais um dia na base.'));assert.ok(personal.el('#content').innerHTML.includes('31/03/2091'));
+personal.run('state.diaryUnlocked=true;state.page="diario";render()');assert.ok(personal.el('#content').innerHTML.includes('Mais um dia na base.'));assert.ok(personal.el('#content').innerHTML.includes('31/03/2091'));
 personal.el('#diaryTitle').value='Descoberta <segura>';personal.el('#diaryBody').value='Equipe A está fora.';personal.fire('#content','click',{id:'saveDiary'});assert.equal(personal.run('state.diary.length'),1);assert.ok(personal.el('#content').innerHTML.includes('&lt;segura&gt;'));
 const diaryReload=boot(personal.storage,personal.clock.now);diaryReload.run('activate();state.page="diario";render()');assert.ok(diaryReload.el('#content').innerHTML.includes('Equipe A está fora.'));const diaryId=diaryReload.run('state.diary[0].id');
 diaryReload.fire('#content','click',{closest:s=>s==='[data-edit-diary]'?{dataset:{editDiary:diaryId}}:null});diaryReload.el('#diaryTitle').value='Corrigido';diaryReload.el('#diaryBody').value='Anotação revisada';diaryReload.fire('#content','click',{id:'saveDiary'});assert.equal(diaryReload.run('state.diary[0].title'),'Corrigido');assert.equal(diaryReload.run('state.diary.length'),1);
@@ -109,5 +139,5 @@ console.log('PASS: contacts, five group members, profile controls, historical me
 
 const inbox=boot();inbox.run('activate();state.page="mensagens";state.openChat="esther";render()');inbox.fire('#content','click',{closest:s=>s==='[data-reply]'?{dataset:{reply:'0'}}:null});inbox.run('endNarrativeAccess();save()');const inboxReturn=boot(inbox.storage,inbox.clock.now+10000);inboxReturn.run('activate()');assert.ok(inboxReturn.run('narrativeSummary("away")').includes('Você recebeu 1 mensagem'));
 const hidden=boot();hidden.run('activate();document.hidden=true');hidden.fire('document','visibilitychange');hidden.clock.now+=3*3600000;hidden.run('syncGameTime();processNarrativeEvents()');assert.equal(hidden.run('getGameDate().toISOString()'),'2091-04-01T02:00:00.000Z');assert.equal(hidden.run('state.dogStory.choice'),null);hidden.run('document.hidden=false');hidden.fire('document','visibilitychange');assert.ok(hidden.run('narrativeSummary("away")').includes('Atividade física intensa'));
-const migratedStore=new Map([['pirate40-save-v1',JSON.stringify({profile:{name:'Alex',pronouns:'he'},gameTime:Date.UTC(2091,3,9,23),notes:[{id:7,title:'Preservar',body:'Lembrete',date:'2091'}],sent:{esther:0}})]]);const migrated=boot(migratedStore);assert.equal(migrated.run('state.notes[0].title'),'Preservar');assert.equal(migrated.run('state.sent.esther'),0);assert.equal(migrated.run('currentNarrativePosition().stage'),'france');const stable=migrated.run('state.gameTime');const migrationReload=boot(migratedStore,migrated.clock.now);assert.equal(migrationReload.run('state.gameTime'),stable);assert.equal(migrationReload.run('Object.keys(state.timeline.events).length'),6);
+const migratedStore=new Map([['pirate40-save-v1',JSON.stringify({profile:{name:'Alex',pronouns:'he'},gameTime:Date.UTC(2091,3,9,23),notes:[{id:7,title:'Preservar',body:'Lembrete',date:'2091'}],sent:{esther:0}})]]);const migrated=boot(migratedStore);assert.equal(migrated.run('state.notes[0].title'),'Preservar');assert.equal(migrated.run('state.sent.esther'),0);assert.equal(migrated.run('currentNarrativePosition().stage'),'france');const stable=migrated.run('state.gameTime');const migrationReload=boot(migratedStore,migrated.clock.now);assert.equal(migrationReload.run('state.gameTime'),stable);assert.equal(migrationReload.run('Object.keys(state.timeline.events).length'),9);
 console.log('PASS: offline pending-message summary, hidden-tab clock, absence window, non-destructive legacy-save migration.');

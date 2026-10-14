@@ -90,8 +90,8 @@ function restartAfterSecurityFailure() {
   stopSecurityAlarm(); lastClosedSector = null; soundMuted = false;
   delete chats.emergency;
   // Preserve player-authored notes and wallpaper; reset narrative session progress.
-  const diary = state.diary, notes = state.notes, wallpaper = state.wallpaper, profile = state.profile, gameTime = state.gameTime, clock = state.clock, timeline = state.timeline, dogStory = state.dogStory, vitals = state.vitals;
-  state = {...structuredClone(initialState),diary,notes,wallpaper,profile,gameTime,clock,timeline,dogStory,vitals,security:freshSecurity()};
+  const diaryUnlocked=state.diaryUnlocked, techBang=state.techBang, motherMessages=state.motherMessages, amelieStory=state.amelieStory, diary = state.diary, notes = state.notes, wallpaper = state.wallpaper, profile = state.profile, gameTime = state.gameTime, clock = state.clock, timeline = state.timeline, dogStory = state.dogStory, vitals = state.vitals;
+  state = {...structuredClone(initialState),diaryUnlocked,techBang,motherMessages,amelieStory,diary,notes,wallpaper,profile,gameTime,clock,timeline,dogStory,vitals,security:freshSecurity()};
   document.dispatchEvent(new Event('pirate40:reset-session'));
   save();
   $('#securityFailure').classList.add('hidden');

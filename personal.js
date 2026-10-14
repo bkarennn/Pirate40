@@ -36,14 +36,17 @@ function renderMessengerProfile(id){
 }
 // Authored 2091 records are immutable; player notes live exclusively in state.diary.
 const ORIGINAL_DIARY = Object.freeze({id:'base-2091',title:'Mais um dia na base.',at:Date.UTC(2091,2,31,23),body:'Hoje o pessoal saiu para procurar alimentos e alguns suprimentos.\n\nEsther foi com Gustavo, enquanto Kevin acompanhou a Mãe.\n\nFiquei responsável por cuidar da base até eles voltarem.\n\nDisseram que não deve demorar muito.\n\nPor enquanto está tudo tranquilo.'});
+const CONTROL_DIARY = Object.freeze({id:'world-control',title:'O dia em que tudo mudou',at:null,body:"Eu ainda lembro de quando tudo aconteceu.\n\nNo começo, ninguém entendeu direito.\n\nAs pessoas simplesmente começaram a agir de maneira estranha. Algumas pararam de responder, outras continuaram andando como se nada estivesse acontecendo.\n\nDepois vieram as ordens.\n\nFoi quando percebemos que os chips nunca foram apenas aquilo que nos prometeram.\n\nNão sei se algum dia o mundo vai voltar ao normal."});
 let diaryEditing=null, diaryQuery='';
 function diaryEntriesMarkup(){
+ if(!state.diaryUnlocked)return '';
  const match=n=>(n.title+' '+n.body).toLocaleLowerCase('pt-BR').includes(diaryQuery.toLocaleLowerCase('pt-BR'));
- const card=(n,original)=>`<article class="note-item diary-entry ${original?'original-entry':''}"><span class="eyebrow">${original?'PIRATE 40 · REGISTRO ORIGINAL DE 2091 · SOMENTE LEITURA':'JOGADOR CONECTADO · 2026'}</span><h3>${escapeHtml(n.title)}</h3><small>${escapeHtml(stampAt(n.at).date)} · ${escapeHtml(stampAt(n.at).time)}${original?'':' · referência narrativa'}</small><p>${escapeHtml(n.body)}</p>${original?'':`<div class="responses"><button class="secondary" data-edit-diary="${escapeHtml(n.id)}">Editar</button><button class="secondary" data-delete-diary="${escapeHtml(n.id)}">Excluir</button></div>`}</article>`;
+ const card=(n,original)=>`<article class="note-item diary-entry ${original?'original-entry':''}"><span class="eyebrow">${original?'PIRATE 40 · REGISTRO ORIGINAL DE 2091 · SOMENTE LEITURA':'JOGADOR CONECTADO · 2026'}</span><h3>${escapeHtml(n.title)}</h3><small>${n.at===null?'DATA DO REGISTRO NÃO DEFINIDA':escapeHtml(stampAt(n.at).date)+' · '+escapeHtml(stampAt(n.at).time)}${original?'':' · referência narrativa'}</small><p>${escapeHtml(n.body)}</p>${original?'':`<div class="responses"><button class="secondary" data-edit-diary="${escapeHtml(n.id)}">Editar</button><button class="secondary" data-delete-diary="${escapeHtml(n.id)}">Excluir</button></div>`}</article>`;
  const notes=[...state.diary].sort((a,b)=>b.at-a.at).filter(match);
- return '<h3>Registros de 2091</h3>'+(match(ORIGINAL_DIARY)?card(ORIGINAL_DIARY,true):'<p class="muted">Nenhum registro encontrado.</p>')+'<h3>Minhas descobertas · conexão de 2026</h3>'+ (notes.map(n=>card(n,false)).join('')||'<p class="muted">Nenhuma anotação pessoal encontrada.</p>');
+ return '<h3>Registros de 2091</h3>'+([ORIGINAL_DIARY,CONTROL_DIARY].filter(match).map(n=>card(n,true)).join('')||'<p class="muted">Nenhum registro encontrado.</p>')+'<h3>Minhas descobertas · conexão de 2026</h3>'+ (notes.map(n=>card(n,false)).join('')||'<p class="muted">Nenhuma anotação pessoal encontrada.</p>');
 }
 function renderDiary(){
+ if(!state.diaryUnlocked)return head('DIÁRIO PESSOAL')+'<form id="diaryUnlockForm" class="panel diary-lock"><span class="widget-icon">'+icon('lock')+'</span><p>Este arquivo está protegido.</p><label>Senha<input id="diaryPassword" class="input" type="password" autocomplete="off" maxlength="100" required/></label><p id="diaryLockFeedback" role="status"></p><button class="primary" type="submit">Desbloquear</button></form>';
  const edit=state.diary.find(n=>n.id===diaryEditing);
  return head('Diário','ENTRE DOIS TEMPOS')+`<p class="muted">Memórias de Pirate 40 e descobertas de quem está conectado em 2026.</p><label class="diary-search">Pesquisar registros<input class="input" id="diarySearch" type="search" value="${escapeHtml(diaryQuery)}" placeholder="Título ou texto"/></label><section class="panel"><h3>${edit?'Editar descoberta':'Nova anotação pessoal · 2026'}</h3><label>Título<input class="input" id="diaryTitle" maxlength="100" value="${escapeHtml(edit?.title || '')}"/></label><label>Texto<textarea id="diaryBody" maxlength="20000">${escapeHtml(edit?.body || '')}</textarea></label><p class="muted" id="diaryFeedback" role="status">Só você escreve suas descobertas. A data usa o relógio de 2091.</p><div class="responses"><button class="primary" id="saveDiary">Salvar</button>${edit?'<button class="secondary" id="cancelDiary">Cancelar edição</button>':''}</div></section><div id="diaryEntries">${diaryEntriesMarkup()}</div>`;
 }
@@ -51,6 +54,7 @@ content.addEventListener('input',e=>{if(e.target.id==='diarySearch'){diaryQuery=
 content.addEventListener('click',e=>{
  const profile=e.target.closest('[data-profile]');if(profile){messengerProfile=profile.dataset.profile;render();return;}
  if(e.target.closest('[data-close-profile]')){messengerProfile=null;render();return;}
+ if(!state.diaryUnlocked)return;
  const edit=e.target.closest('[data-edit-diary]');if(edit){diaryEditing=edit.dataset.editDiary;render();return;}
  const del=e.target.closest('[data-delete-diary]');if(del){state.diary=state.diary.filter(n=>n.id!==del.dataset.deleteDiary);if(diaryEditing===del.dataset.deleteDiary)diaryEditing=null;save();render();return;}
  if(e.target.id==='cancelDiary'){diaryEditing=null;render();}
@@ -63,3 +67,10 @@ content.addEventListener('click',e=>{
 });
 // Leaving the messenger dismisses its transient profile view without changing history.
 document.addEventListener('click',e=>{if(e.target.closest('[data-go], [data-page], #homeButton, #homeGesture, #lockButton'))messengerProfile=null;});
+
+content.addEventListener('submit',e=>{
+ if(e.target.id!=='diaryUnlockForm')return;e.preventDefault();
+ const value=$('#diaryPassword').value.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ if(value!=='amelie'){$('#diaryLockFeedback').textContent='Senha inválida. Acesso negado.';return;}
+ state.diaryUnlocked=true;save();render();
+});

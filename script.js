@@ -9,6 +9,10 @@ const STORAGE_KEY = 'pirate40-save-v1';
 const initialState = {
   profile: null,
   diary: [],
+  diaryUnlocked: false,
+  techBang: null,
+  motherMessages: [],
+  amelieStory: null,
   clock: null,
   timeline: null,
   gameTime: Date.UTC(2091,2,31,23,0,0),
@@ -131,7 +135,7 @@ function render() {
   $('#appTitle').textContent = apps.find(a => a.id === state.page)?.name || '';
   updateNotifications();
   $('#bottomLocation').textContent = state.locator ? 'LOCALIZADOR: EMISSÃO ATIVA' : 'LOCALIZADOR: DESLIGADO';
-  const pages = { inicio: renderInicio, ia: (typeof renderIA === 'function' ? renderIA : renderInicio), mensagens: renderMensagens, mapa: renderMapa, galeria: renderGaleria, notas: renderNotas, arquivos: renderArquivos, sistema: renderSistema, seguranca: renderSecurity, vitals: renderVitals, calendar: renderCalendar, diario: renderDiary };
+  const pages = { inicio: renderInicio, ia: (typeof renderIA === 'function' ? renderIA : renderInicio), mensagens: renderMensagens, mapa: renderMapa, galeria: renderGaleria, notas: renderNotas, arquivos: renderArquivos, sistema: renderSistema, seguranca: renderSecurity, vitals: renderVitals, calendar: renderCalendar, diario: renderDiary, techbang: renderTechBang };
   content.innerHTML = pages[state.page]?.() || renderInicio();
   content.scrollTop = 0;
   if(typeof updateSessionUI === 'function')updateSessionUI();
@@ -156,7 +160,7 @@ function renderMensagens() {
     if (sentIdx !== undefined) { const a = chat.answers[sentIdx]; messages.push({from:'mine',text:a.text,...(state.sentTimes[id]?.mine || {time:'03:45'})}); if (!state.replyDue[id]) messages.push({from:'other',text:a.response,...(state.sentTimes[id]?.other || {time:'03:46'})}); }
     return `<button class="back" data-back>← VOLTAR AOS CONTATOS</button>${messengerHeader(id,chat)}
     <div class="chat">${!messages.length ? '<p class="empty-history">Nenhuma mensagem disponível neste histórico.</p>' : ''}${messages.map(m=>`<div class="bubble ${m.from==='mine'?'mine':''}">${m.sender ? `<strong class="message-sender">${escapeHtml(m.sender==='Pirate 40' ? playerName()+' · Pirate 40' : m.sender)}</strong>` : ''}${escapeHtml(dialogueText(m.text))}${m.photoId ? photoThumbnail(m.photoId, true) : ''}<small>${m.date ? escapeHtml(m.date)+' · ' : ''}${m.time}</small></div>`).join('')}${state.replyDue[id] ? typingIndicator(chat.name) : ''}${id === 'group' ? dogTyping() : ''}${id === 'emergency' ? '<div id="emergencyTyping"></div>' : ''}</div>
-    ${id === 'group' ? dogChoices() : ''}
+    ${id === 'group' ? dogChoices() : id === 'amelie' ? amelieControls() : ''}
     ${sentIdx===undefined && chat.answers.length ? `<p class="muted" style="margin-top:15px">ESCOLHA UMA RESPOSTA:</p><div class="responses">${chat.answers.map((a,i)=>`<button class="secondary" data-reply="${i}">${escapeHtml(a.text)}</button>`).join('')}</div>` : `<p class="muted" style="margin-top:15px">${state.replyDue[id] ? 'Aguardando resposta…' : chat.answers.length ? 'Nenhuma nova resposta disponível.' : id === 'group' ? (state.dogStory.completed ? 'Histórico recuperado.' : 'Conversa da base') : 'Canal somente para leitura.'}</p>`}`;
   }
   return renderMessengerList();
@@ -190,6 +194,7 @@ const apps = [
   {id:'ia',name:'IA de Sobrevivência',caption:'Conte comigo'},
   {id:'galeria',name:'Galeria',caption:'Fragmentos do mundo'},
   {id:'mapa',name:'Mapa',caption:'Encontre seu caminho'},
+  {id:'techbang',name:'TECH BANG',caption:'Equipamento pareado'},
   {id:'diario',name:'Diário',caption:'Entre dois tempos'},
   {id:'notas',name:'Anotações',caption:'Para não esquecer'},
   {id:'arquivos',name:'Arquivos',caption:'O que ficou guardado'},
@@ -200,6 +205,7 @@ const apps = [
 ];
 function icon(name) {
   const paths = {
+    techbang:'<rect x="5" y="8" width="22" height="16" rx="5"/><path d="M10 3v5m6-5v5m6-5v5M10 24v5m6-5v5m6-5v5M1 13h4m22 0h4M1 19h4m22 0h4m-12-8-5 6h6l-5 5"/>',
     diario:'<path d="M5 4h19a3 3 0 0 1 3 3v22H8a3 3 0 0 1-3-3Zm4 0v25M14 10h8m-8 6h8m-8 6h5"/>',
     calendar:'<rect x="4" y="6" width="24" height="23" rx="4"/><path d="M4 13h24M10 3v6m12-6v6M10 19h3m6 0h3m-12 5h3"/>',
     vitals:'<path d="M16 28S2 19 2 10a7 7 0 0 1 14-3 7 7 0 0 1 14 3c0 9-14 18-14 18Z"/><path d="M4 16h7l3-6 4 12 3-6h7"/>',
