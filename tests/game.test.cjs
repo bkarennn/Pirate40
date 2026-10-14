@@ -35,7 +35,7 @@ function boot(storage = new Map(), now = 1000000, newGame = false) {
     document:{querySelector:el,querySelectorAll:()=>[],getElementById:id=>el('#'+id),addEventListener:(t,f)=>el('document').addEventListener(t,f),dispatchEvent:e=>fire('document',e.type)},
     location:{reload(){}},addEventListener:(t,f)=>el('window').addEventListener(t,f)});
   context.window=context;
-  for(const file of ['characters.js','photos.js','script.js','personal.js','ia.js','world-data.js','map.js','equipment.js','group-story.js','timeline.js','session.js','security.js']) new vm.Script(fs.readFileSync(path.join(root,file),'utf8'),{filename:file}).runInContext(context);
+  for(const file of ['characters.js','photos.js','script.js','personal.js','diary-archive.js','ia.js','world-data.js','map.js','equipment.js','group-story.js','timeline.js','session.js','security.js']) new vm.Script(fs.readFileSync(path.join(root,file),'utf8'),{filename:file}).runInContext(context);
   return {el,fire,clock,storage,audioControl,timeouts,run:code=>vm.runInContext(code,context)};
 }
 
@@ -79,6 +79,32 @@ late.storage.set('other-app','keep');late.run('restartWholeStory()');assert.equa
 console.log('PASS: official start; persistent offline clock; midnight; scheduled dog and both choices; photo gate; vital history; 06:00 transit and 11:00 France; birthday; idempotent events/notifications; real summaries; real-time alarm; legacy apps and selective reset.');
 globalThis.testDone=Promise.resolve();
 
+const archives=boot();archives.run('activate();navigateApp("diario");diaryOwner="gustavo";render()');
+assert.ok(archives.el('#content').innerHTML.includes('Arquivo privado bloqueado'));assert.ok(!archives.el('#content').innerHTML.includes('Feliz Dia das Mães'));assert.equal(archives.run('state.diaryUnlocked'),false);
+archives.el('#gustavoPassword').value='errada';archives.fire('#content','submit',{id:'gustavoUnlockForm'});assert.equal(archives.run('state.gustavoDiaryUnlocked'),false);assert.equal(archives.el('#gustavoLockFeedback').textContent,'Senha inválida. Acesso negado.');
+for(const password of ['Lisandra','LISANDRA','lisandra']){archives.run('state.gustavoDiaryUnlocked=false;render()');archives.el('#gustavoPassword').value=password;archives.fire('#content','submit',{id:'gustavoUnlockForm'});assert.equal(archives.run('state.gustavoDiaryUnlocked'),true);}
+assert.equal(archives.run('state.diaryUnlocked'),false);assert.equal(archives.run('GUSTAVO_ARCHIVE.length'),7);assert.equal(archives.run('new Set(GUSTAVO_ARCHIVE.map(e=>e.id)).size'),7);
+const archivedTime=archives.run('state.gameTime');archives.fire('#content','click',{closest:s=>s==='[data-gustavo-folder]'?{dataset:{gustavoFolder:'letters'}}:null});assert.equal(archives.run('state.gameTime'),archivedTime);assert.equal((archives.el('#content').innerHTML.match(/<details class="archive-record"/g)||[]).length,3);
+const lettersHTML=archives.el('#content').innerHTML;assert.ok(lettersHTML.indexOf('09/05/2085')<lettersHTML.indexOf('09/05/2086'));assert.ok(lettersHTML.indexOf('09/05/2086')<lettersHTML.indexOf('09/05/2087'));assert.ok(lettersHTML.includes('Te amo, mãe.'));assert.ok(!lettersHTML.includes('data-edit-diary'));
+archives.run('gustavoFolder="all";render()');assert.ok(archives.el('#content').innerHTML.includes('17/07/2088'));assert.ok(archives.el('#content').innerHTML.includes('04/09/2089'));assert.ok(archives.el('#content').innerHTML.includes('20/02/2091'));assert.ok(archives.el('#content').innerHTML.includes('Esther guardou os registros do procedimento'));
+archives.run('save()');const archiveReload=boot(archives.storage,archives.clock.now);assert.equal(archiveReload.run('state.gustavoDiaryUnlocked'),true);assert.equal(archiveReload.run('chats.gustavo.messages.length'),9);assert.equal(archiveReload.run('chats.gustavo.messages[1].text'),'Você viu a Lisandra?');assert.ok(archiveReload.run('chats.gustavo.messages.every(m=>messageTimestamp(m)<Date.UTC(2091,2,1))'));assert.equal(archiveReload.run('PHOTO_LIBRARY.filter(p=>p.id==="lisandra").length'),1);
+archiveReload.run('activate();state.page="diario";state.diaryUnlocked=true;render()');for(const title of ['O começo do fim','Miragem','Mais um dia na base'])assert.ok(archiveReload.el('#content').innerHTML.includes(title));assert.ok(!archiveReload.el('#content').innerHTML.includes('01/01/2082'));assert.ok(archiveReload.el('#content').innerHTML.includes('2082 · data do acontecimento'));
+archiveReload.run('restartWholeStory()');assert.equal(archiveReload.run('state.diaryUnlocked'),false);assert.equal(archiveReload.run('state.gustavoDiaryUnlocked'),false);assert.equal(archiveReload.run('chats.gustavo.messages.length'),9);
+console.log('PASS: separate diary passwords, locked content, complete dated letters, chronological archive, Esther clue, historical conversation, photo, persistence and reset.');
+
+const navigation=boot();navigation.run('activate()');
+for(const app of navigation.run('apps.map(a=>a.id)')){
+ navigation.run('goHome()');assert.ok(navigation.el('#content').innerHTML.includes('app-grid'));assert.equal(navigation.el('.identity').classList.contains('hidden'),false);
+ assert.equal(navigation.run('navigateApp('+JSON.stringify(app)+')'),true);assert.equal(navigation.run('state.page'),app);
+ assert.equal(navigation.el('#nav').hidden,true);assert.equal(navigation.el('#nav').innerHTML,'');assert.equal(navigation.el('.identity').classList.contains('hidden'),true);assert.equal(navigation.el('.bottomline').classList.contains('hidden'),true);assert.ok(!navigation.el('#content').innerHTML.includes('app-grid'));assert.equal(navigation.el('#appToolbar').classList.contains('hidden'),false);
+ navigation.fire('#homeButton','click');assert.equal(navigation.run('state.page'),'inicio');
+}
+navigation.run('navigateApp("mensagens","group")');navigation.fire('#content','click',{closest:s=>s==='[data-profile]'?{dataset:{profile:'group'}}:null});navigation.fire('#content','click',{closest:s=>s==='[data-profile]'?{dataset:{profile:'esther'}}:null});
+navigation.fire('#homeButton','click');assert.equal(navigation.run('messengerProfile'),'group');navigation.fire('#homeButton','click');assert.equal(navigation.run('messengerProfile'),null);assert.equal(navigation.run('state.openChat'),'group');navigation.fire('#homeButton','click');assert.equal(navigation.run('state.openChat'),null);assert.equal(navigation.run('state.page'),'mensagens');navigation.fire('#homeButton','click');assert.equal(navigation.run('state.page'),'inicio');
+navigation.run('navigateApp("galeria")');assert.equal(navigation.run('navigateApp("sistema")'),false);assert.equal(navigation.run('state.page'),'inicio');assert.equal(navigation.run('navigateApp("sistema")'),true);
+navigation.run('state.diaryUnlocked=true;save();goHome();navigateApp("diario");navigateBack();navigateApp("diario")');assert.equal(navigation.run('state.diaryUnlocked'),true);
+console.log('PASS: every app has a standalone surface, home-only switching, nested back navigation and preserved state.');
+
 // New group scenes preserve chronology online and offline, without resolving choices.
 const scenes=boot();scenes.run('activate();advanceGameTime(419)');assert.equal(scenes.run('state.groupStory.messages.length'),0);assert.ok(!scenes.run('narrativeSummary("recent")').includes('DVD'));
 scenes.run('advanceGameTime(1)');assert.equal(scenes.run('state.groupStory.counts.dvd'),1);assert.equal(scenes.run('state.groupStory.messages[0].date'),'01/04/2091');assert.equal(scenes.run('state.groupStory.messages[0].time'),'06:00:00');
@@ -116,7 +142,7 @@ console.log('PASS: location toggle and reload, diary typing survives render, pas
 // Password gate, permanent equipment telemetry and scheduled interactive messages.
 const protectedGame=boot();protectedGame.run('activate();state.page="diario";render()');
 assert.ok(protectedGame.el('#content').innerHTML.includes('Este arquivo está protegido.'));
-assert.ok(!protectedGame.el('#content').innerHTML.includes('Mais um dia na base.'));
+assert.ok(!protectedGame.el('#content').innerHTML.includes('Mais um dia na base'));
 assert.ok(!protectedGame.el('#content').innerHTML.includes('Amélie'));
 protectedGame.el('#diaryPassword').value='errada';protectedGame.fire('#content','submit',{id:'diaryUnlockForm'});
 assert.equal(protectedGame.run('state.diaryUnlocked'),false);assert.equal(protectedGame.el('#diaryLockFeedback').textContent,'Senha inválida. Acesso negado.');
@@ -157,15 +183,15 @@ for(const id of ['esther','kevin','gustavo','mae']){
 personal.fire('#content','click',{closest:s=>s==='[data-profile]'?{dataset:{profile:'group'}}:null});
 assert.ok(personal.el('#content').innerHTML.includes('15 de janeiro de 2090'));
 assert.equal((personal.el('#content').innerHTML.match(/data-profile="(?:player|esther|kevin|gustavo|mae)"/g)||[]).length,5);
-personal.run('messengerProfile=null;state.openChat="gustavo";render()');assert.ok(personal.el('#content').innerHTML.includes('Nenhuma mensagem disponível neste histórico.'));
+personal.run('messengerProfile=null;state.openChat="kevin";render()');assert.ok(personal.el('#content').innerHTML.includes('Nenhuma mensagem disponível neste histórico.'));
 personal.run('state.openChat="group";render()');assert.ok(personal.el('#content').innerHTML.includes('Tô preso no banheiro'));const noticeCount=personal.run('state.notifications.length');personal.run('render();save()');assert.equal(personal.run('state.notifications.length'),noticeCount);
 const historic=boot(personal.storage,personal.clock.now);historic.run('activate();state.page="mensagens";state.openChat="group";render()');assert.equal((historic.el('#content').innerHTML.match(/Tô preso no banheiro/g)||[]).length,1);
-personal.run('state.diaryUnlocked=true;state.page="diario";render()');assert.ok(personal.el('#content').innerHTML.includes('Mais um dia na base.'));assert.ok(personal.el('#content').innerHTML.includes('31/03/2091'));
+personal.run('state.diaryUnlocked=true;state.page="diario";render()');assert.ok(personal.el('#content').innerHTML.includes('Mais um dia na base'));assert.ok(personal.el('#content').innerHTML.includes('31/03/2091'));
 personal.el('#diaryTitle').value='Descoberta <segura>';personal.el('#diaryBody').value='Equipe A está fora.';personal.fire('#content','click',{id:'saveDiary'});assert.equal(personal.run('state.diary.length'),1);assert.ok(personal.el('#content').innerHTML.includes('&lt;segura&gt;'));
 const diaryReload=boot(personal.storage,personal.clock.now);diaryReload.run('activate();state.page="diario";render()');assert.ok(diaryReload.el('#content').innerHTML.includes('Equipe A está fora.'));const diaryId=diaryReload.run('state.diary[0].id');
 diaryReload.fire('#content','click',{closest:s=>s==='[data-edit-diary]'?{dataset:{editDiary:diaryId}}:null});diaryReload.el('#diaryTitle').value='Corrigido';diaryReload.el('#diaryBody').value='Anotação revisada';diaryReload.fire('#content','click',{id:'saveDiary'});assert.equal(diaryReload.run('state.diary[0].title'),'Corrigido');assert.equal(diaryReload.run('state.diary.length'),1);
 diaryReload.fire('#content','input',{id:'diarySearch',value:'sem resultado'});assert.ok(!diaryReload.el('#diaryEntries').innerHTML.includes('Corrigido'));
-diaryReload.fire('#content','click',{closest:s=>s==='[data-delete-diary]'?{dataset:{deleteDiary:'base-2091'}}:null});assert.equal(diaryReload.run('ORIGINAL_DIARY.title'),'Mais um dia na base.');assert.equal(diaryReload.run('Object.isFrozen(ORIGINAL_DIARY)'),true);
+diaryReload.fire('#content','click',{closest:s=>s==='[data-delete-diary]'?{dataset:{deleteDiary:'base-2091'}}:null});assert.equal(diaryReload.run('ORIGINAL_DIARY.title'),'Mais um dia na base');assert.equal(diaryReload.run('Object.isFrozen(ORIGINAL_DIARY)'),true);
 diaryReload.fire('#content','click',{closest:s=>s==='[data-delete-diary]'?{dataset:{deleteDiary:diaryId}}:null});assert.equal(diaryReload.run('state.diary.length'),0);
 assert.equal(personal.run('migrateCharacterData({sender:"Noah",sent:{noah:1}}).sender'),'Gustavo');assert.equal(personal.run('migrateCharacterData({sent:{noah:1}}).sent.gustavo'),1);
 personal.run('restartWholeStory()');assert.equal(personal.run('state.diary.length'),0);assert.equal(personal.run('messengerProfile'),null);

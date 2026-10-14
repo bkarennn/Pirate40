@@ -36,3 +36,18 @@
 #bottomLocation{border:0;background:transparent;color:inherit;font:inherit;text-align:left;text-decoration:underline;text-underline-offset:3px;padding:8px 0;max-width:38%;position:relative;z-index:1}.location-control{margin-bottom:12px;flex-shrink:0}.diary-lock label{display:block}.diary-lock .input{display:block;min-height:48px;font-size:16px;margin:10px 0 14px}.diary-lock>button{margin:5px 8px 5px 0}.contact-row .chat-item:before{display:none}
 
 .dog-care p{margin:12px 0;line-height:1.6}.dog-care button{margin-top:10px}.feeder-pulse{display:inline-block;width:10px;height:10px;background:#75aa93;border-radius:50%;margin-left:12px;animation:feeder-check 1.2s ease-out 2}@keyframes feeder-check{50%{box-shadow:0 0 0 9px #75aa9325;transform:scale(1.2)}}#dogNameForm button{margin-top:12px}@media(prefers-reduced-motion:reduce){.feeder-pulse{animation:none}}
+/* One active app surface; launchers and personal widgets belong to Home only. */
+.system,.content{min-width:0}
+.system:not(.is-home){padding:0;overflow:hidden}
+.system:not(.is-home)>.identity,.system:not(.is-home)>.nav,.system:not(.is-home)>.bottomline{display:none}
+.system>.nav{display:none}
+.system:not(.is-home)>.app-toolbar{flex-shrink:0;padding:10px 20px;background:#f3f6fbd9;border-bottom:1px solid #dce4ef;min-height:50px}
+.system:not(.is-home)>.content{width:100%;flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;border:0;border-radius:0;padding:20px 24px;overscroll-behavior:contain;scroll-padding-bottom:24px}
+.content>*{max-width:100%;min-width:0}.content input,.content textarea,.content button{max-width:100%;min-width:0}.content button{overflow-wrap:anywhere}.content .responses{padding-bottom:8px}.content .chat{max-width:100%}.content .bubble{overflow-wrap:anywhere}.content .row{flex-wrap:wrap}.content form{min-width:0}.app-toolbar #appTitle{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.app-toolbar .back{flex-shrink:0}
+@media(max-width:620px){.system:not(.is-home)>.app-toolbar{padding:8px 14px}.system:not(.is-home)>.content{padding:16px 14px max(22px,env(safe-area-inset-bottom));border-radius:0}.content .wallpaper-options{flex-wrap:wrap}.content .chat{max-height:52dvh}.content .messenger-header small{overflow-wrap:anywhere}}
+
+/* Allow short desktop windows to shrink the device instead of clipping app controls. */
+.device{min-height:0}.system:not(.is-home) .app-toolbar{min-width:0}
+
+/* Private archives: quiet, readable documents with no reward animations. */
+.diary-owners{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 22px}.diary-owners [aria-pressed=true]{border-color:#6779a7;background:#e1e8f5}.archive-record{border:1px solid #dce3ed;border-radius:16px;background:#fff;margin:14px 0;overflow:hidden}.archive-record summary{display:grid;gap:9px;cursor:pointer;padding:18px;overflow-wrap:anywhere}.archive-record summary:after{content:"Abrir registro ↓";font-size:11px;color:#637794}.archive-record[open] summary:after{content:"Fechar registro ↑"}.archive-record summary small{color:#6d7890;font-size:11px}.archive-text{white-space:pre-wrap;line-height:1.85;font-size:14px;color:#42516a;padding:18px;max-height:60dvh;overflow-y:auto;overflow-wrap:anywhere;border-top:1px solid #e8edf4}.archive-record summary:focus-visible{outline:2px solid #687ab7;outline-offset:-4px}

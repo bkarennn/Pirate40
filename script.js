@@ -11,6 +11,7 @@ const initialState = {
   diary: [],
   groupStory: null,
   diaryUnlocked: false,
+  gustavoDiaryUnlocked: false,
   techBang: null,
   motherMessages: [],
   amelieStory: null,
@@ -96,14 +97,14 @@ $('#lockButton').addEventListener('click', () => {
 });
 nav.addEventListener('click', e => {
   const button = e.target.closest('[data-page]'); if (!button) return;
-  state.page = button.dataset.page; state.openChat = null; save(); render();
+  navigateApp(button.dataset.page);
 });
 content.addEventListener('click', e => {
   const pageButton = e.target.closest('[data-go]');
-  if (pageButton) { state.page = pageButton.dataset.go; state.openChat = null; save(); render(); return; }
+  if (pageButton) { navigateApp(pageButton.dataset.go); return; }
   const chatButton = e.target.closest('[data-chat]');
   if (chatButton) { messengerProfile=null; state.openChat = chatButton.dataset.chat; if (!state.read.includes(state.openChat)) state.read.push(state.openChat); save(); render(); return; }
-  if (e.target.closest('[data-back]')) { state.openChat = null; save(); render(); return; }
+  if (e.target.closest('[data-back]')) { navigateBack(); return; }
   const response = e.target.closest('[data-reply]');
   if (response && state.openChat) {
     const chatId = state.openChat, idx = Number(response.dataset.reply);
@@ -139,6 +140,10 @@ function render() {
   document.querySelector('.device').dataset.wallpaper = state.wallpaper;
   systemScreen.classList.toggle('is-home', state.page === 'inicio');
   $('#appToolbar').classList.toggle('hidden', state.page === 'inicio');
+  nav.hidden=true;
+  document.querySelector('.identity').classList.toggle('hidden',state.page!=='inicio');
+  document.querySelector('.bottomline').classList.toggle('hidden',state.page!=='inicio');
+  $('#homeButton').textContent=(state.page==='diario'&&diaryOwner==='gustavo')||(state.page==='mensagens'&&(state.openChat||messengerProfile))?'← Voltar':'← Tela inicial';
   $('#appTitle').textContent = apps.find(a => a.id === state.page)?.name || '';
   updateNotifications();
   $('#bottomLocation').textContent = state.locator ? 'LOCALIZADOR: EMISSÃO ATIVA' : 'LOCALIZADOR: DESLIGADO';
@@ -234,9 +239,27 @@ function icon(name) {
   return `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.sistema}</svg>`;
 }
 document.querySelectorAll('[data-icon]').forEach(el => el.innerHTML = icon(el.dataset.icon));
-nav.innerHTML = apps.map(a => `<button class="nav-btn" data-page="${a.id}" aria-label="${a.name}" title="${a.name}">${icon(a.id)}<span>${a.name}</span>${a.id === 'mensagens' ? '<b id="unreadPill">3</b>' : ''}</button>`).join('');
-function goHome() { state.page = 'inicio'; state.openChat = null; save(); render(); }
-$('#homeButton').addEventListener('click', goHome);
+nav.innerHTML = ''; // The home grid is the only app launcher.
+
+// All app transitions go through this boundary. Switching apps requires Home.
+function navigateApp(page,chatId=null){
+ if(!state.unlocked || !apps.some(app=>app.id===page))return false;
+ if(state.page!=='inicio' && state.page!==page){goHome();showToast('Escolha '+(apps.find(app=>app.id===page)?.name||'o aplicativo')+' na tela inicial.','inicio');return false;}
+ messengerProfile=null;profileTrail=[];state.page=page;state.openChat=page==='mensagens'&&chats[chatId]?chatId:null;
+ if(state.openChat&&!state.read.includes(state.openChat))state.read.push(state.openChat);
+ $('#notificationPanel').classList.add('hidden');$('#notificationButton').setAttribute('aria-expanded','false');$('#toastRegion').innerHTML='';
+ save();render();return true;
+}
+function navigateBack(){
+ if(state.page==='diario'&&diaryOwner==='gustavo'){if(gustavoFolder!=='all')gustavoFolder='all';else diaryOwner='pirate';render();return;}
+ if($('#photoViewer').open){closePhoto();return;}
+ if(state.page==='mensagens'&&messengerProfile){messengerProfile=profileTrail.pop()||null;render();return;}
+ if(state.page==='mensagens'&&state.openChat){state.openChat=null;profileTrail=[];save();render();return;}
+ goHome();
+}
+function goHome(){diaryOwner='pirate';gustavoFolder='all';messengerProfile=null;profileTrail=[];state.page='inicio';state.openChat=null;save();render();}
+
+$('#homeButton').addEventListener('click', navigateBack);
 $('#homeGesture').addEventListener('click', goHome);
 let toastTimer;
 function showToast(text, page, urgent = false, chatId = null) {
@@ -263,12 +286,12 @@ $('#notificationButton').addEventListener('click', () => {
 document.addEventListener('click', e => {
   if (e.target.closest('#closeNotifications')) { $('#notificationPanel').classList.add('hidden'); $('#notificationButton').setAttribute('aria-expanded','false'); }
   const notice = e.target.closest('[data-notification-page]');
-  if (notice && state.unlocked) { messengerProfile=null; state.page = notice.dataset.notificationPage; state.openChat = notice.dataset.notificationChat || null; $('#notificationPanel').classList.add('hidden'); $('#notificationButton').setAttribute('aria-expanded','false'); $('#toastRegion').innerHTML = ''; save(); render(); }
+  if (notice && state.unlocked) { if(notice.dataset.notificationPage==='inicio')goHome();else navigateApp(notice.dataset.notificationPage,notice.dataset.notificationChat || null); }
   if(e.target.closest('[data-locator-toggle]') && state.unlocked){state.locator=!state.locator;save();render();notify(state.locator?'Localização ativada':'Localização desativada',state.locator?'Seu dispositivo está transmitindo sua posição.':'Emissão de posição suspensa.','sistema');}
   const wallpaper = e.target.closest('[data-wallpaper]');
   if (wallpaper) { state.wallpaper = wallpaper.dataset.wallpaper; save(); render(); }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (e.defaultPrevented) return; if ($('#restartDialog').open) { e.preventDefault(); $('#restartDialog').close(); return; } if ($('#photoViewer').open) { e.preventDefault(); closePhoto(); return; } $('#notificationPanel').classList.add('hidden'); $('#notificationButton').setAttribute('aria-expanded','false'); if (state.unlocked) goHome(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (e.defaultPrevented) return; if ($('#restartDialog').open) { e.preventDefault(); $('#restartDialog').close(); return; } if ($('#photoViewer').open) { e.preventDefault(); closePhoto(); return; } $('#notificationPanel').classList.add('hidden'); $('#notificationButton').setAttribute('aria-expanded','false'); if (state.unlocked) navigateBack(); } });
 document.querySelector('.device').dataset.wallpaper = state.wallpaper;
 updateNotifications();
 

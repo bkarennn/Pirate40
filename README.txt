@@ -117,3 +117,17 @@ NOVAS CONVERSAS DA BASE
 - Painel remoto no grupo e em Segurança. Rotina automática às 06:16 mantém os cuidados mesmo offline; nunca há punição ao cachorro. Suprimento inteiramente fictício da base.
 - Nome de até 24 caracteres, sem geração automática. Três respostas à descoberta do desaparecimento; apenas uma escolha. A conexão temporal ainda não é revelada.
 - Estado em groupStory no mesmo salvamento. Reinício por invasão preserva os registros; Reiniciar História remove-os. Nenhum pareamento Wi-Fi adicionado.
+
+NAVEGAÇÃO ENTRE APLICATIVOS
+- navigateApp, navigateBack e goHome centralizam a navegação. Trocas entre aplicativos passam pela tela inicial.
+- Somente a grade inicial apresenta atalhos. Dentro dos apps ficam a barra de status, o botão Voltar e o conteúdo ativo; cabeçalho pessoal e rodapé inicial ficam ocultos.
+- Voltar respeita perfil → informações do grupo → conversa → contatos → início. Mensagens e progresso são preservados.
+- Área de aplicativo flexível, com rolagem vertical interna e ajustes para celulares e janelas baixas.
+- Testes de navegação cobrem todos os aplicativos, retorno interno e preservação dos dados.
+
+DIÁRIOS HISTÓRICOS DE PIRATE 40 E GUSTAVO
+- diary-archive.js armazena documentos históricos imutáveis, a conversa antiga sobre Lisandra e a interface do dispositivo local sincronizado. Nenhuma rede ou dispositivo real é acessado.
+- Diário permite alternar proprietário. Gustavo possui bloqueio e salvamento independentes; cartas em Para Mamãe, também disponíveis na sequência cronológica geral. Registros abrem/fecham e têm rolagem própria.
+- Datas históricas não alteram o relógio da partida. Miragem usa somente o ano 2082; documentos sem data exata mantêm essa indicação. A conversa de Lisandra foi situada em 18/02/2091, antes dos eventos de março, sem notificação.
+- Foto existente fotos/girafa.jpg adicionada sem alteração do original. Textos de cartas preservados; referência aos registros de Esther sem revelar sua senha.
+- Reinício completo bloqueia ambos os diários; reinício por invasão preserva desbloqueios. Anotações pessoais continuam editáveis, documentos originais permanecem somente leitura.

@@ -1,5 +1,6 @@
 // Original local files are reused by both the gallery and message attachments.
 const PHOTO_LIBRARY = [
+ {id:'lisandra',file:'girafa.jpg',title:'Lisandra · a girafa de Gustavo',alt:'Girafa de pelúcia junto à cama.'},
  {id:'chip',file:'chip.png',title:'Chip',alt:'Chip eletrônico segurado por uma pinça.'},
  {id:'sunflowers',file:'girassois.png',title:'Girassóis plantados',alt:'Girassóis plantados em um canteiro.'},
  {id:'dog',file:'download (4).jpeg',title:'Cachorro encontrado na base',alt:'Cachorro deitado sobre um tecido estampado.'},

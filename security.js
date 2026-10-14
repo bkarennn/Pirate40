@@ -90,8 +90,8 @@ function restartAfterSecurityFailure() {
   stopSecurityAlarm(); lastClosedSector = null; soundMuted = false;
   delete chats.emergency;
   // Preserve player-authored notes and wallpaper; reset narrative session progress.
-  const groupStory=state.groupStory, diaryUnlocked=state.diaryUnlocked, techBang=state.techBang, motherMessages=state.motherMessages, amelieStory=state.amelieStory, diary = state.diary, notes = state.notes, wallpaper = state.wallpaper, profile = state.profile, gameTime = state.gameTime, clock = state.clock, timeline = state.timeline, dogStory = state.dogStory, vitals = state.vitals;
-  state = {...structuredClone(initialState),groupStory,diaryUnlocked,techBang,motherMessages,amelieStory,diary,notes,wallpaper,profile,gameTime,clock,timeline,dogStory,vitals,security:freshSecurity()};
+  const gustavoDiaryUnlocked=state.gustavoDiaryUnlocked, groupStory=state.groupStory, diaryUnlocked=state.diaryUnlocked, techBang=state.techBang, motherMessages=state.motherMessages, amelieStory=state.amelieStory, diary = state.diary, notes = state.notes, wallpaper = state.wallpaper, profile = state.profile, gameTime = state.gameTime, clock = state.clock, timeline = state.timeline, dogStory = state.dogStory, vitals = state.vitals;
+  state = {...structuredClone(initialState),gustavoDiaryUnlocked,groupStory,diaryUnlocked,techBang,motherMessages,amelieStory,diary,notes,wallpaper,profile,gameTime,clock,timeline,dogStory,vitals,security:freshSecurity()};
   document.dispatchEvent(new Event('pirate40:reset-session'));
   save();
   $('#securityFailure').classList.add('hidden');
@@ -110,7 +110,7 @@ content.addEventListener('click', e => {
   if (close) closeSecuritySector(close.dataset.closeSector);
   if (e.target.closest('[data-start-security]') && state.unlocked) startSecurityAlarm();
 });
-$('#securityOpen').addEventListener('click', () => { if (state.unlocked) { state.page = 'seguranca'; state.openChat = null; save(); render(); } });
+$('#securityOpen').addEventListener('click', () => { if (state.unlocked) navigateApp('seguranca'); });
 document.addEventListener('visibilitychange', securityTick);
 window.addEventListener('pageshow', () => {securityTick();if(state.security.status==='active')playSecurityAudio();});
 
