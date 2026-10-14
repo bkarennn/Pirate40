@@ -69,6 +69,13 @@ try:
     call('Runtime.enable');call('Page.enable')
     call('Page.navigate',{'url':(root/'index.html').as_uri()})
     wait('typeof renderDiary==="function" && typeof renderDevices==="function"')
+    # Fresh game: use the real identity form and native unlock flow first.
+    click('#playerName');call('Input.insertText',{'text':'Partida nova'});click('#identityForm button[type="submit"]')
+    click('#scanButton');wait('state.unlocked');click('[data-go="diario"]')
+    password('Amélie');click('#diaryUnlockForm button[type="submit"]')
+    wait('!!document.querySelector("#personalDiaryTitle")')
+    assert js('document.querySelectorAll(".archive-record").length===4')
+    js('state.diaryUnlocked=false;save()')
     js('state.profile={name:"Teste",pronouns:"neutral"};state.diary=null;save();')
     call('Page.reload');wait('typeof state!=="undefined" && !!state.profile')
     click('#scanButton');wait('state.unlocked')
