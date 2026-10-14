@@ -52,6 +52,26 @@ function renderMessengerProfile(id){
 const ORIGINAL_DIARY = Object.freeze({"id":"base-2091","title":"Mais um dia na base","at":3826220400000,"body":"Hoje o pessoal saiu para procurar alimentos e alguns suprimentos.\n\nEsther foi com Gustavo, enquanto Kevin acompanhou a Mãe.\n\nFiquei responsável pela segurança da base até eles voltarem.\n\nGustavo insistiu tanto para acompanhar Esther que a Mãe acabou deixando.\n\nDisseram que não vão demorar muito.\n\nPor enquanto está tudo tranquilo.\n\nEspero que encontrem alguma coisa boa para comer. Kevin reclamou da última refeição por três dias seguidos."});
 const CONTROL_DIARY = Object.freeze({id:'world-control',title:'O dia em que tudo mudou',at:null,body:"Eu ainda lembro de quando tudo aconteceu.\n\nNo começo, ninguém entendeu direito.\n\nAs pessoas simplesmente começaram a agir de maneira estranha. Algumas pararam de responder, outras continuaram andando como se nada estivesse acontecendo.\n\nDepois vieram as ordens.\n\nFoi quando percebemos que os chips nunca foram apenas aquilo que nos prometeram.\n\nNão sei se algum dia o mundo vai voltar ao normal."});
 let diaryEditing=null, diaryQuery='', diaryPasswordDraft='';
+
+function normalizePersonalDiary(){
+ if(Array.isArray(state.diary)&&state.diary.every(note=>note&&typeof note==='object'&&typeof note.title==='string'&&typeof note.body==='string'))return;
+ const legacy=state.diary;
+ if(!Object.prototype.hasOwnProperty.call(state,'diaryLegacyData'))state.diaryLegacyData=structuredClone(legacy ?? null);
+ const candidates=Array.isArray(legacy)?legacy:Array.isArray(legacy?.entries)?legacy.entries:Array.isArray(legacy?.notes)?legacy.notes:legacy&&typeof legacy==='object'?(('title' in legacy||'body' in legacy)?[legacy]:Object.values(legacy)):[];
+ state.diary=candidates.filter(note=>note&&typeof note==='object'&&!Array.isArray(note)).map((note,index)=>({...note,id:note.id??'legacy-note-'+index,title:String(note.title??'Sem título'),body:String(note.body??note.text??''),at:Number.isFinite(note.at)?note.at:state.gameTime}));
+ save();
+}
+function unlockPersonalDiary(form){
+ const input=form?.querySelector?.('#diaryPassword') || $('#diaryPassword');
+ if(!input)return;
+ const value=input.value.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ if(value!=='amelie'){$('#diaryLockFeedback').textContent='Senha incorreta. Tente novamente.';input.setAttribute('aria-invalid','true');return;}
+ normalizePersonalDiary();
+ state.diaryUnlocked=true;diaryPasswordDraft='';diaryQuery='';
+ save();render();
+ $('#personalDiaryTitle')?.focus();
+}
+
 function diaryEntriesMarkup(){
  if(!state.diaryUnlocked)return '';
  const match=n=>(n.title+' '+n.body).toLocaleLowerCase('pt-BR').includes(diaryQuery.toLocaleLowerCase('pt-BR'));
@@ -60,10 +80,11 @@ function diaryEntriesMarkup(){
  return '<h3>Arquivo pessoal · registros históricos</h3>'+(archiveCards([ORIGINAL_DIARY,CONTROL_DIARY,...PIRATE_ARCHIVE].filter(match))||'<p class="muted">Nenhum registro encontrado.</p>')+'<h3>Minhas descobertas · conexão de 2026</h3>'+ (notes.map(n=>card(n,false)).join('')||'<p class="muted">Nenhuma anotação pessoal encontrada.</p>');
 }
 function renderDiary(){
+ normalizePersonalDiary();
 
- if(!state.diaryUnlocked)return head('DIÁRIO PESSOAL',escapeHtml(playerName())+' · Pirate 40')+'<form id="diaryUnlockForm" class="panel diary-lock"><span class="widget-icon">'+icon('lock')+'</span><p>Este arquivo está protegido.</p><label for="diaryPassword">Senha</label><input id="diaryPassword" name="diaryPassword" class="input" type="password" placeholder="Digite a senha" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="100" required/><button type="button" class="secondary" id="showDiaryPassword" aria-pressed="false">Mostrar senha</button><p id="diaryLockFeedback" role="status"></p><button class="primary" type="submit">Desbloquear</button></form>';
+ if(!state.diaryUnlocked)return head('DIÁRIO PESSOAL',escapeHtml(playerName())+' · Pirate 40')+'<form id="diaryUnlockForm" class="panel diary-lock"><span class="widget-icon">'+icon('lock')+'</span><p>Este arquivo está protegido.</p><label for="diaryPassword">Senha</label><input id="diaryPassword" name="diaryPassword" class="input" type="password" placeholder="Digite a senha" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="100" aria-describedby="diaryLockFeedback" required/><button type="button" class="secondary" id="showDiaryPassword" aria-pressed="false">Mostrar senha</button><p id="diaryLockFeedback" role="status"></p><button class="primary" type="submit">Desbloquear</button></form>';
  const edit=state.diary.find(n=>n.id===diaryEditing);
- return head('Diário',escapeHtml(playerName())+' · Pirate 40')+`<p class="muted">Memórias de Pirate 40 e descobertas de quem está conectado em 2026.</p><label class="diary-search">Pesquisar registros<input class="input" id="diarySearch" type="search" value="${escapeHtml(diaryQuery)}" placeholder="Título ou texto"/></label><section class="panel"><h3>${edit?'Editar descoberta':'Nova anotação pessoal · 2026'}</h3><label>Título<input class="input" id="diaryTitle" maxlength="100" value="${escapeHtml(edit?.title || '')}"/></label><label>Texto<textarea id="diaryBody" maxlength="20000">${escapeHtml(edit?.body || '')}</textarea></label><p class="muted" id="diaryFeedback" role="status">Só você escreve suas descobertas. A data usa o relógio de 2091.</p><div class="responses"><button class="primary" id="saveDiary">Salvar</button>${edit?'<button class="secondary" id="cancelDiary">Cancelar edição</button>':''}</div></section><div id="diaryEntries">${diaryEntriesMarkup()}</div>`;
+ return '<h2 id="personalDiaryTitle" tabindex="-1">DIÁRIO PESSOAL — PIRATE 40</h2><p class="meta">'+escapeHtml(playerName())+'</p>'+`<p class="muted">Memórias de Pirate 40 e descobertas de quem está conectado em 2026.</p><label class="diary-search">Pesquisar registros<input class="input" id="diarySearch" type="search" value="${escapeHtml(diaryQuery)}" placeholder="Título ou texto"/></label><div id="diaryEntries">${diaryEntriesMarkup()}</div><section class="panel"><h3>${edit?'Editar descoberta':'Nova anotação pessoal · 2026'}</h3><label>Título<input class="input" id="diaryTitle" maxlength="100" value="${escapeHtml(edit?.title || '')}"/></label><label>Texto<textarea id="diaryBody" maxlength="20000">${escapeHtml(edit?.body || '')}</textarea></label><p class="muted" id="diaryFeedback" role="status">Só você escreve suas descobertas. A data usa o relógio de 2091.</p><div class="responses"><button class="primary" id="saveDiary">Salvar</button>${edit?'<button class="secondary" id="cancelDiary">Cancelar edição</button>':''}</div></section>`;
 }
 content.addEventListener('input',e=>{if(e.target.id==='diaryPassword')diaryPasswordDraft=e.target.value;if(e.target.id==='diarySearch'){diaryQuery=e.target.value;$('#diaryEntries').innerHTML=diaryEntriesMarkup();}});
 content.addEventListener('click',e=>{
@@ -86,7 +107,5 @@ content.addEventListener('click',e=>{
 
 content.addEventListener('submit',e=>{
  if(e.target.id!=='diaryUnlockForm')return;e.preventDefault();
- const value=$('#diaryPassword').value.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
- if(value!=='amelie'){$('#diaryLockFeedback').textContent='Senha inválida. Acesso negado.';return;}
- state.diaryUnlocked=true;diaryPasswordDraft='';save();render();
+ unlockPersonalDiary(e.target);
 });

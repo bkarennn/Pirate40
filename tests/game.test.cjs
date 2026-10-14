@@ -79,6 +79,15 @@ late.storage.set('other-app','keep');late.run('restartWholeStory()');assert.equa
 console.log('PASS: official start; persistent offline clock; midnight; scheduled dog and both choices; photo gate; vital history; 06:00 transit and 11:00 France; birthday; idempotent events/notifications; real summaries; real-time alarm; legacy apps and selective reset.');
 globalThis.testDone=Promise.resolve();
 
+for(const oldDiary of [null,{entries:[{id:'kept',title:'Minha descoberta',text:'Texto preservado',extra:'keep'}]}]){
+ const diaryStorage=new Map([['pirate40-save-v1',JSON.stringify({profile:{name:'Alex',pronouns:'neutral'},diary:oldDiary,gustavoDiaryUnlocked:true,locator:false})]]);
+ const repairedDiary=boot(diaryStorage);repairedDiary.run('activate();navigateApp("diario")');repairedDiary.el('#diaryPassword').value=' Amélie ';repairedDiary.fire('#content','submit',{id:'diaryUnlockForm'});
+ assert.equal(repairedDiary.run('state.diaryUnlocked'),true);assert.ok(!repairedDiary.el('#content').innerHTML.includes('diaryUnlockForm'));assert.ok(repairedDiary.el('#content').innerHTML.includes('DIÁRIO PESSOAL — PIRATE 40'));assert.equal(repairedDiary.run('state.gustavoDiaryUnlocked'),true);assert.equal(repairedDiary.run('state.locator'),false);
+ assert.equal(repairedDiary.run('JSON.stringify(state.diaryLegacyData)'),JSON.stringify(oldDiary));if(oldDiary)assert.equal(repairedDiary.run('state.diary[0].body'),'Texto preservado');
+ const reopenedDiary=boot(diaryStorage,repairedDiary.clock.now);assert.equal(reopenedDiary.run('state.diaryUnlocked'),true);assert.equal(reopenedDiary.run('JSON.stringify(state.diaryLegacyData)'),JSON.stringify(oldDiary));
+}
+console.log('PASS: personal diary recovers null/legacy notes, immediate render, whitespace password, raw backup and unrelated progress preserved.');
+
 const network=boot();network.run('activate();navigateApp("diario")');assert.ok(!network.el('#content').innerHTML.includes('data-diary-owner'));assert.ok(!network.el('#content').innerHTML.includes('Gustavo'));network.run('state.diaryUnlocked=true;render()');assert.ok(!network.el('#content').innerHTML.includes('Diário de Gustavo'));network.run('goHome();navigateApp("devices")');assert.ok(network.el('#content').innerHTML.includes('Nenhum dispositivo pessoal próximo'));
 network.run('advanceGameTime(2039)');assert.equal(network.run('deviceConnected("gustavo")'),false);network.run('advanceGameTime(1);render()');assert.equal(network.run('deviceConnected("gustavo")'),true);assert.equal(network.run('deviceConnected("esther")'),true);assert.equal(network.run('deviceConnected("kevin")'),false);assert.equal(network.run('deviceConnected("mae")'),false);
 assert.equal(network.run('state.notifications.filter(n=>n.title==="NEXUS OS — REDE LOCAL").length'),1);
@@ -176,7 +185,7 @@ assert.ok(protectedGame.el('#content').innerHTML.includes('Este arquivo está pr
 assert.ok(!protectedGame.el('#content').innerHTML.includes('Mais um dia na base'));
 assert.ok(!protectedGame.el('#content').innerHTML.includes('Amélie'));
 protectedGame.el('#diaryPassword').value='errada';protectedGame.fire('#content','submit',{id:'diaryUnlockForm'});
-assert.equal(protectedGame.run('state.diaryUnlocked'),false);assert.equal(protectedGame.el('#diaryLockFeedback').textContent,'Senha inválida. Acesso negado.');
+assert.equal(protectedGame.run('state.diaryUnlocked'),false);assert.equal(protectedGame.el('#diaryLockFeedback').textContent,'Senha incorreta. Tente novamente.');
 for(const password of ['Amélie','amelie','AMÉLIE','AmElIe']){
  protectedGame.run('state.diaryUnlocked=false;render()');protectedGame.el('#diaryPassword').value=password;protectedGame.fire('#content','submit',{id:'diaryUnlockForm'});assert.equal(protectedGame.run('state.diaryUnlocked'),true);
 }
