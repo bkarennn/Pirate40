@@ -306,7 +306,7 @@ document.addEventListener('click', e => {
   const notice = e.target.closest('[data-notification-page]');
   if (notice && state.unlocked) { if(notice.dataset.notificationPage==='inicio')goHome();else navigateApp(notice.dataset.notificationPage,notice.dataset.notificationChat || null); }
   if(e.target.closest('[data-locator-toggle]') && state.unlocked){state.locator=!state.locator;save();render();notify(state.locator?'Localização ativada':'Localização desativada',state.locator?'Seu dispositivo está transmitindo sua posição.':'Emissão de posição suspensa.','sistema');}
-  const wallpaper = e.target.closest('[data-wallpaper]');
+  const wallpaper = e.target.closest('button[data-wallpaper]');
   if (wallpaper) { state.wallpaper = wallpaper.dataset.wallpaper; save(); render(); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (e.defaultPrevented) return; if ($('#restartDialog').open) { e.preventDefault(); $('#restartDialog').close(); return; } if ($('#photoViewer').open) { e.preventDefault(); closePhoto(); return; } $('#notificationPanel').classList.add('hidden'); $('#notificationButton').setAttribute('aria-expanded','false'); if (state.unlocked) navigateBack(); } });

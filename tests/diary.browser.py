@@ -61,7 +61,6 @@ try:
         raise AssertionError({'condition':code,'errors':errors,'state':js('JSON.stringify({url:location.href,ready:document.readyState,state:typeof state,profile:typeof state!==\"undefined\"?state.profile:null,save:localStorage.getItem(\"pirate40-save-v1\")})')})
     def click(selector):
         point=js('(()=>{const e=document.querySelector('+json.dumps(selector)+');e.scrollIntoView({block:"center"});const r=e.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()')
-        if 'submit' in selector: print('CLICK',point,js('document.elementFromPoint('+str(point['x'])+','+str(point['y'])+')?.outerHTML'),flush=True)
         call('Input.dispatchMouseEvent',{'type':'mousePressed','button':'left','clickCount':1,**point})
         call('Input.dispatchMouseEvent',{'type':'mouseReleased','button':'left','clickCount':1,**point})
     def password(value):
@@ -74,7 +73,7 @@ try:
     call('Page.reload');wait('typeof state!=="undefined" && !!state.profile')
     click('#scanButton');wait('state.unlocked')
     click('[data-go="diario"]');password('errada');click('#diaryUnlockForm button[type="submit"]')
-    assert js('document.querySelector("#diaryLockFeedback").textContent')=='Senha incorreta. Tente novamente.',js('JSON.stringify({form:document.querySelector("#diaryUnlockForm").outerHTML,value:document.querySelector("#diaryPassword").value,active:document.activeElement.outerHTML})')
+    assert js('document.querySelector("#diaryLockFeedback").textContent')=='Senha incorreta. Tente novamente.',js('JSON.stringify({form:document.querySelector("#diaryUnlockForm").outerHTML,value:document.querySelector("#diaryPassword").value,active:document.activeElement.tagName})')
     password(' Amélie ');click('#diaryUnlockForm button[type="submit"]')
     wait('!!document.querySelector("#personalDiaryTitle")')
     assert not js('!!document.querySelector("#diaryUnlockForm")')
