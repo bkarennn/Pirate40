@@ -241,3 +241,10 @@ const inbox=boot();inbox.run('activate();state.page="mensagens";state.openChat="
 const hidden=boot();hidden.run('activate();document.hidden=true');hidden.fire('document','visibilitychange');hidden.clock.now+=3*3600000;hidden.run('syncGameTime();processNarrativeEvents()');assert.equal(hidden.run('getGameDate().toISOString()'),'2091-04-01T02:00:00.000Z');assert.equal(hidden.run('state.dogStory.choice'),null);hidden.run('document.hidden=false');hidden.fire('document','visibilitychange');assert.ok(hidden.run('narrativeSummary("away")').includes('Atividade física intensa'));
 const migratedStore=new Map([['pirate40-save-v1',JSON.stringify({profile:{name:'Alex',pronouns:'he'},gameTime:Date.UTC(2091,3,9,23),notes:[{id:7,title:'Preservar',body:'Lembrete',date:'2091'}],sent:{esther:0}})]]);const migrated=boot(migratedStore);assert.equal(migrated.run('state.notes[0].title'),'Preservar');assert.equal(migrated.run('state.sent.esther'),0);assert.equal(migrated.run('currentNarrativePosition().stage'),'france');const stable=migrated.run('state.gameTime');const migrationReload=boot(migratedStore,migrated.clock.now);assert.equal(migrationReload.run('state.gameTime'),stable);assert.equal(migrationReload.run('Object.keys(state.timeline.events).length'),16);
 console.log('PASS: offline pending-message summary, hidden-tab clock, absence window, non-destructive legacy-save migration.');
+
+const diaryRenderFailure=boot();
+diaryRenderFailure.run('activate();state.page="diario";state.diaryUnlocked=true;save();diaryEntriesMarkup=()=>{throw new Error("simulated archive failure")};const previousError=console.error;console.error=()=>{};try{render()}finally{console.error=previousError}');
+assert.equal(diaryRenderFailure.run('state.diaryUnlocked'),true);
+assert.ok(diaryRenderFailure.el('#content').innerHTML.includes('Não foi possível carregar os registros.'));
+assert.ok(!diaryRenderFailure.el('#content').innerHTML.includes('id="diaryUnlockForm"'));
+console.log('PASS: archive rendering failure shows an explicit error without relocking the diary.');

@@ -82,6 +82,13 @@ function diaryEntriesMarkup(){
  return '<h3>Arquivo pessoal · registros históricos</h3>'+(archiveCards([ORIGINAL_DIARY,CONTROL_DIARY,...PIRATE_ARCHIVE].filter(match))||'<p class="muted">Nenhum registro encontrado.</p>')+'<h3>Minhas descobertas · conexão de 2026</h3>'+ (notes.map(n=>card(n,false)).join('')||'<p class="muted">Nenhuma anotação pessoal encontrada.</p>');
 }
 function renderDiary(){
+ try{return renderPersonalDiaryContent();}
+ catch(error){
+  console.error("[PIRATE 40] Falha ao renderizar o diário pessoal.",error);
+  return head("DIÁRIO PESSOAL — PIRATE 40")+'<section class="panel" role="alert"><h3>Não foi possível carregar os registros.</h3><p>Seu estado de desbloqueio foi mantido. Tente abrir o diário novamente.</p></section>';
+ }
+}
+function renderPersonalDiaryContent(){
  normalizePersonalDiary();
 
  if(!state.diaryUnlocked)return head('DIÁRIO PESSOAL',escapeHtml(playerName())+' · Pirate 40')+'<form id="diaryUnlockForm" novalidate class="panel diary-lock"><span class="widget-icon">'+icon('lock')+'</span><p>Este arquivo está protegido.</p><label for="diaryPassword">Senha</label><input id="diaryPassword" name="diaryPassword" class="input" type="password" placeholder="Digite a senha" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="100" aria-describedby="diaryLockFeedback" required/><button type="button" class="secondary" id="showDiaryPassword" aria-pressed="false">Mostrar senha</button><p id="diaryLockFeedback" role="status"></p><button class="primary" type="submit">Desbloquear</button></form>';
