@@ -10,7 +10,10 @@ const initialState = {
   profile: null,
   diary: [],
   groupStory: null,
+  messageClockVersion: null,
   diaryUnlocked: false,
+  devices: null,
+  readDocuments: {},
   gustavoDiaryUnlocked: false,
   techBang: null,
   motherMessages: [],
@@ -110,7 +113,7 @@ content.addEventListener('click', e => {
     const chatId = state.openChat, idx = Number(response.dataset.reply);
     const answer = chats[chatId].answers[idx];
     if (!answer || state.sent[chatId] !== undefined) return;
-    state.sentTimes[chatId]={mine:gameMessageStamp()}; state.sent[chatId] = idx; state.replyDue[chatId] = Date.now() + typingDelay(answer.response); state.sentTimes[chatId].replyAt=state.gameTime+typingDelay(answer.response)*(state.clock?.rate || 1); save(); render();
+    state.sentTimes[chatId]={mine:gameMessageStamp()}; state.sent[chatId] = idx; state.replyDue[chatId] = getGameDate().getTime() + typingDelay(answer.response); state.sentTimes[chatId].replyAt=state.gameTime+typingDelay(answer.response)*(state.clock?.rate || 1); save(); render();
   }
   if (e.target.id === 'saveNote') {
     const title = $('#noteTitle').value.trim(), body = $('#noteBody').value.trim();
@@ -123,11 +126,19 @@ content.addEventListener('click', e => {
   if (e.target.id === 'resetSave') $('#restartDialog').showModal();
 });
 content.addEventListener('change', e => { if (e.target.id === 'locatorToggle') { state.locator = e.target.checked; save(); render(); notify(state.locator ? 'Localização ativada' : 'Localização desativada', state.locator ? 'Seu dispositivo está transmitindo sua posição.' : 'Emissão de posição suspensa.', 'sistema'); }});
+let lastRenderedRoute='';
 function render() {
+  const route=state.page+':'+(state.openChat||'')+':'+(messengerProfile||'')+(state.page==='devices'?':'+remoteDevice+':'+remoteSection:'');
+  const previousLog=content.querySelector('.chat');
+  const sameRoute=route===lastRenderedRoute;
+  const oldContentTop=content.scrollTop;
+  const oldChatTop=previousLog?.scrollTop||0;
+  const followChat=!sameRoute||!previousLog||previousLog.scrollHeight-previousLog.clientHeight-oldChatTop<40;
+
   const nameField=state.page==='mensagens'?$('#dogNameInput'):null;
   const namingFocused=nameField && document.activeElement===nameField;
   const namingSelection=namingFocused?[nameField.selectionStart,nameField.selectionEnd]:null;
-  const passwordField=state.page==='diario'?$('#diaryPassword'):null;
+  const passwordField=state.page==='diario'?$('#diaryPassword'):state.page==='devices'?$('#gustavoPassword'):null;
   const passwordEditing=passwordField && document.activeElement===passwordField;
   const passwordSelection=passwordEditing?[passwordField.selectionStart,passwordField.selectionEnd]:null;
   if(state.page!=='mensagens') messengerProfile=null;
@@ -143,15 +154,19 @@ function render() {
   nav.hidden=true;
   document.querySelector('.identity').classList.toggle('hidden',state.page!=='inicio');
   document.querySelector('.bottomline').classList.toggle('hidden',state.page!=='inicio');
-  $('#homeButton').textContent=(state.page==='diario'&&diaryOwner==='gustavo')||(state.page==='mensagens'&&(state.openChat||messengerProfile))?'← Voltar':'← Tela inicial';
+  $('#homeButton').textContent=(state.page==='devices'&&remoteDevice)||(state.page==='mensagens'&&(state.openChat||messengerProfile))?'← Voltar':'← Tela inicial';
   $('#appTitle').textContent = apps.find(a => a.id === state.page)?.name || '';
   updateNotifications();
   $('#bottomLocation').textContent = state.locator ? 'LOCALIZADOR: EMISSÃO ATIVA' : 'LOCALIZADOR: DESLIGADO';
-  const pages = { inicio: renderInicio, ia: (typeof renderIA === 'function' ? renderIA : renderInicio), mensagens: renderMensagens, mapa: renderMapa, galeria: renderGaleria, notas: renderNotas, arquivos: renderArquivos, sistema: renderSistema, seguranca: ()=>renderSecurity()+dogCarePanel(), vitals: renderVitals, calendar: renderCalendar, diario: renderDiary, techbang: renderTechBang };
+  const pages = { inicio: renderInicio, ia: (typeof renderIA === 'function' ? renderIA : renderInicio), mensagens: renderMensagens, mapa: renderMapa, galeria: renderGaleria, notas: renderNotas, arquivos: renderArquivos, sistema: renderSistema, seguranca: ()=>renderSecurity()+dogCarePanel(), vitals: renderVitals, calendar: renderCalendar, diario: renderDiary, techbang: renderTechBang, devices: renderDevices };
   content.innerHTML = pages[state.page]?.() || renderInicio();
   if(state.page==='diario'&&!state.diaryUnlocked){const field=$('#diaryPassword');if(field){field.value=diaryPasswordDraft;if(passwordEditing){field.focus();if(field.setSelectionRange)field.setSelectionRange(...passwordSelection);}}}
   if(namingFocused){const field=$('#dogNameInput');if(field){field.focus();if(field.setSelectionRange)field.setSelectionRange(...namingSelection);}}
-  content.scrollTop = 0;
+  if(state.page==='devices'&&passwordEditing){const field=$('#gustavoPassword');if(field){field.focus();if(field.setSelectionRange)field.setSelectionRange(...passwordSelection);}}
+  content.scrollTop = sameRoute?oldContentTop:0;
+  const currentLog=content.querySelector('.chat');
+  if(currentLog)currentLog.scrollTop=followChat?currentLog.scrollHeight:oldChatTop;
+  lastRenderedRoute=route;
   if(typeof updateSessionUI === 'function')updateSessionUI();
   if (state.page === 'mapa') mountWorldMap();
   if (typeof updateSecurityUI === 'function') updateSecurityUI();
@@ -172,6 +187,7 @@ function renderMensagens() {
     if(id === 'group') startDogConversation();
     const messages = id === 'group' ? allBaseMessages() : [...chat.messages];
     if (sentIdx !== undefined) { const a = chat.answers[sentIdx]; messages.push({from:'mine',text:a.text,...(state.sentTimes[id]?.mine || {time:'03:45'})}); if (!state.replyDue[id]) messages.push({from:'other',text:a.response,...(state.sentTimes[id]?.other || {time:'03:46'})}); }
+    messages.sort((a,b)=>messageTimestamp(a)-messageTimestamp(b));
     return `<button class="back" data-back>← VOLTAR AOS CONTATOS</button>${messengerHeader(id,chat)}
     <div class="chat">${!messages.length ? '<p class="empty-history">Nenhuma mensagem disponível neste histórico.</p>' : ''}${messages.map(m=>`<div class="bubble ${m.from==='mine'?'mine':''}">${m.sender ? `<strong class="message-sender">${escapeHtml(m.sender==='Pirate 40' ? playerName()+' · Pirate 40' : m.sender)}</strong>` : ''}${escapeHtml(dialogueText(m.text))}${m.photoId ? photoThumbnail(m.photoId, true) : ''}<small>${m.date ? escapeHtml(m.date)+' · ' : ''}${m.time}</small></div>`).join('')}${state.replyDue[id] ? typingIndicator(chat.name) : ''}${id === 'group' ? dogTyping()+groupStoryTyping() : ''}${id === 'emergency' ? '<div id="emergencyTyping"></div>' : ''}</div>
     ${id === 'group' ? dogChoices()+groupStoryControls() : id === 'amelie' ? amelieControls() : ''}
@@ -209,6 +225,7 @@ const apps = [
   {id:'ia',name:'IA de Sobrevivência',caption:'Conte comigo'},
   {id:'galeria',name:'Galeria',caption:'Fragmentos do mundo'},
   {id:'mapa',name:'Mapa',caption:'Encontre seu caminho'},
+  {id:'devices',name:'Dispositivos',caption:'Conexões da base'},
   {id:'techbang',name:'TECH BANG',caption:'Equipamento pareado'},
   {id:'diario',name:'Diário',caption:'Entre dois tempos'},
   {id:'notas',name:'Anotações',caption:'Para não esquecer'},
@@ -220,6 +237,7 @@ const apps = [
 ];
 function icon(name) {
   const paths = {
+    devices:'<rect x="2" y="5" width="10" height="21" rx="3"/><rect x="20" y="5" width="10" height="21" rx="3"/><path d="M12 13h8m-3-3 3 3-3 3m3 4h-8m3-3-3 3 3 3"/>',
     techbang:'<rect x="5" y="8" width="22" height="16" rx="5"/><path d="M10 3v5m6-5v5m6-5v5M10 24v5m6-5v5m6-5v5M1 13h4m22 0h4M1 19h4m22 0h4m-12-8-5 6h6l-5 5"/>',
     diario:'<path d="M5 4h19a3 3 0 0 1 3 3v22H8a3 3 0 0 1-3-3Zm4 0v25M14 10h8m-8 6h8m-8 6h5"/>',
     calendar:'<rect x="4" y="6" width="24" height="23" rx="4"/><path d="M4 13h24M10 3v6m12-6v6M10 19h3m6 0h3m-12 5h3"/>',
@@ -251,13 +269,13 @@ function navigateApp(page,chatId=null){
  save();render();return true;
 }
 function navigateBack(){
- if(state.page==='diario'&&diaryOwner==='gustavo'){if(gustavoFolder!=='all')gustavoFolder='all';else diaryOwner='pirate';render();return;}
+ if(state.page==='devices'){devicesBack();return;}
  if($('#photoViewer').open){closePhoto();return;}
  if(state.page==='mensagens'&&messengerProfile){messengerProfile=profileTrail.pop()||null;render();return;}
  if(state.page==='mensagens'&&state.openChat){state.openChat=null;profileTrail=[];save();render();return;}
  goHome();
 }
-function goHome(){diaryOwner='pirate';gustavoFolder='all';messengerProfile=null;profileTrail=[];state.page='inicio';state.openChat=null;save();render();}
+function goHome(){remoteDevice=null;remoteSection='overview';diaryOwner='pirate';gustavoFolder='all';messengerProfile=null;profileTrail=[];state.page='inicio';state.openChat=null;save();render();}
 
 $('#homeButton').addEventListener('click', navigateBack);
 $('#homeGesture').addEventListener('click', goHome);
@@ -313,13 +331,13 @@ function typingIndicator(name) {
 function tickConversations() {
  tickDogConversation();
  for (const [id,due] of Object.entries(state.replyDue)) {
-   if (Date.now() < due) continue;
+   if (getGameDate().getTime() < due) continue;
    delete state.replyDue[id];
    state.sentTimes[id] ??= {};const receivedAt=state.sentTimes[id].replyAt ?? state.gameTime;state.sentTimes[id].other=stampAt(receivedAt);recordNarrativeMessage('reply:'+id,receivedAt);
    const reading = state.unlocked && state.page === 'mensagens' && state.openChat === id;
    if (!reading) state.read = state.read.filter(item => item !== id);
    save();
-   if (reading || (state.unlocked && state.page==='mensagens' && !state.openChat)) { render(); const log=content.querySelector('.chat');if(log)log.scrollTop=log.scrollHeight; }
+   if (reading || (state.unlocked && state.page==='mensagens' && !state.openChat)) { render(); }
    updateMessageBadges();
  }
  document.dispatchEvent(new Event('pirate40:chat-tick'));
@@ -361,7 +379,7 @@ function addDogMessage(entry, at = getGameDate().getTime()) {
 }
 function refreshDogChat() {
  if(state.unlocked && state.page==='mensagens' && state.openChat==='group'){
-   render();const log=content.querySelector('.chat');if(log)log.scrollTop=log.scrollHeight;
+   render();
  }
 }
 function tickDogConversation() {
@@ -369,12 +387,12 @@ function tickDogConversation() {
  if(!state.timeline?.events?.['dog-found'])return;
  // Pause outside the historical conversation and during an invasion; never catch up in a burst.
  if(!state.unlocked || state.page!=='mensagens' || state.openChat!=='group' || document.hidden || ['active','failed'].includes(state.security?.status))return;
- if(story.completed || !story.nextAt || Date.now()<story.nextAt)return;
+ if(story.completed || !story.nextAt || getGameDate().getTime()<story.nextAt)return;
  const entry=dogSequence()[story.messages.length];if(!entry)return;
- addDogMessage(entry);
+ addDogMessage(entry,story.nextAt);
  const next=dogSequence()[story.messages.length];
  story.completed=story.choice!==null && !next;
- story.nextAt=next?Date.now()+typingDelay(next[1]):0;
+ story.nextAt=next?story.nextAt+typingDelay(next[1]):0;
  save();refreshDogChat();
 }
 content.addEventListener('click',event=>{
@@ -382,5 +400,5 @@ content.addEventListener('click',event=>{
  const story=state.dogStory,choice=Number(button.dataset.dogChoice);
  if(!state.timeline?.events?.['dog-found'] || !state.unlocked || state.openChat!=='group' || story.choice!==null || story.messages.length!==DOG_INTRO.length || ![0,1].includes(choice))return;
  story.choice=choice;addDogMessage(['Pirate 40',DOG_OPTIONS[choice]]);
- story.nextAt=Date.now()+typingDelay(DOG_BRANCHES[choice][0][1]);save();refreshDogChat();
+ story.nextAt=getGameDate().getTime()+typingDelay(DOG_BRANCHES[choice][0][1]);save();refreshDogChat();
 });

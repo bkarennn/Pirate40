@@ -1,24 +1,24 @@
 // Historical local documents. Dates never change the narrative clock.
 let diaryOwner='pirate', gustavoFolder='all', gustavoPasswordDraft='';
-function diaryOwnerSelector(){return '<div class="diary-owners" aria-label="Arquivos pessoais"><button class="secondary" data-diary-owner="pirate" aria-pressed="'+(diaryOwner==='pirate')+'">'+escapeHtml(playerName())+' · Pirate 40 — '+(state.diaryUnlocked?'Desbloqueado':'Bloqueado')+'</button><button class="secondary" data-diary-owner="gustavo" aria-pressed="'+(diaryOwner==='gustavo')+'">Gustavo — '+(state.gustavoDiaryUnlocked?'Desbloqueado':'Bloqueado')+'</button></div>';}
 function archiveDate(entry){return entry.dateLabel || (entry.at===null?'DATA DO REGISTRO NÃO DEFINIDA':stampAt(entry.at).date+(entry.id==='base-2091'?' · '+stampAt(entry.at).time:''));}
 function archiveCards(entries){
  const ordered=[...entries].sort((a,b)=>(a.at??(a.year?Date.UTC(a.year,0,1):Infinity))-(b.at??(b.year?Date.UTC(b.year,0,1):Infinity)));
- return ordered.map(entry=>'<details class="archive-record"><summary><span class="meta">'+escapeHtml(archiveDate(entry))+'</span><strong>'+escapeHtml(entry.title)+'</strong><small>'+(entry.folder==='letters'?'Para Mamãe · carta não enviada':'Registro pessoal · somente leitura')+'</small></summary><div class="archive-text" tabindex="0" aria-label="'+escapeHtml(entry.title)+'">'+escapeHtml(entry.body)+'</div></details>').join('');
+ return ordered.map(entry=>'<details class="archive-record" data-archive-record="'+escapeHtml(entry.id)+'"><summary><span class="meta">'+escapeHtml(archiveDate(entry))+'</span><strong>'+escapeHtml(entry.title)+'</strong><small>'+(entry.folder==='letters'?'Para Mamãe · carta não enviada':'Registro pessoal · somente leitura')+'</small></summary><div class="archive-text" tabindex="0" aria-label="'+escapeHtml(entry.title)+'">'+escapeHtml(entry.body)+'</div></details>').join('');
 }
 function renderGustavoDiary(){
- const top=diaryOwnerSelector()+head('Diário de Gustavo','DISPOSITIVO PESSOAL · ARQUIVO LOCAL SINCRONIZADO');
+ if(!remoteDiaryAccess('gustavo'))return '<p class="muted">Conecte e pareie o dispositivo de Gustavo para acessar este arquivo.</p>';
+ const top=head('Diário de Gustavo','DISPOSITIVO PESSOAL · ARQUIVO LOCAL SINCRONIZADO');
  if(!state.gustavoDiaryUnlocked)return top+'<form id="gustavoUnlockForm" class="panel diary-lock"><span class="widget-icon">'+icon('lock')+'</span><p>Arquivo privado bloqueado.</p><label for="gustavoPassword">Senha</label><input id="gustavoPassword" class="input" type="password" autocomplete="off" maxlength="100" required value="'+escapeHtml(gustavoPasswordDraft)+'"/><p id="gustavoLockFeedback" role="status"></p><button class="primary" type="submit">Desbloquear</button></form>';
  const entries=GUSTAVO_ARCHIVE.filter(entry=>gustavoFolder==='all'||entry.folder==='letters');
  return top+'<p class="muted">Memórias privadas de Gustavo. Estas cartas não foram enviadas.</p><div class="diary-owners"><button class="secondary" data-gustavo-folder="all" aria-pressed="'+(gustavoFolder==='all')+'">Todos os registros</button><button class="secondary" data-gustavo-folder="letters" aria-pressed="'+(gustavoFolder==='letters')+'">Para Mamãe</button></div><section aria-label="Registros de Gustavo">'+archiveCards(entries)+'</section>';
 }
 content.addEventListener('input',event=>{if(event.target.id==='gustavoPassword')gustavoPasswordDraft=event.target.value;});
 content.addEventListener('click',event=>{
- const owner=event.target.closest('[data-diary-owner]');if(owner&&['pirate','gustavo'].includes(owner.dataset.diaryOwner)){diaryOwner=owner.dataset.diaryOwner;diaryQuery='';render();return;}
- const folder=event.target.closest('[data-gustavo-folder]');if(folder&&state.gustavoDiaryUnlocked&&['all','letters'].includes(folder.dataset.gustavoFolder)){gustavoFolder=folder.dataset.gustavoFolder;render();}
+ const folder=event.target.closest('[data-gustavo-folder]');if(folder&&remoteDiaryAccess('gustavo')&&state.gustavoDiaryUnlocked&&['all','letters'].includes(folder.dataset.gustavoFolder)){gustavoFolder=folder.dataset.gustavoFolder;render();}
 });
 content.addEventListener('submit',event=>{
  if(event.target.id!=='gustavoUnlockForm')return;event.preventDefault();
+ if(!remoteDiaryAccess('gustavo'))return;
  if($('#gustavoPassword').value.trim().toLowerCase()!=='lisandra'){$('#gustavoLockFeedback').textContent='Senha inválida. Acesso negado.';return;}
  state.gustavoDiaryUnlocked=true;gustavoPasswordDraft='';save();render();
 });

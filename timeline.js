@@ -1,5 +1,6 @@
 // Official schedule. Add definitions here; execution records live in the existing save.
 const STORY_EVENTS = [
+ {id:'devices-arrived',at:Date.UTC(2091,3,2,9),type:'devices',title:'NEXUS OS — REDE LOCAL',description:'2 novos dispositivos detectados. Esther conectada. Gustavo conectado.'},
  ...Object.entries(GROUP_SCENES).map(([id,scene])=>({id:'group-'+id,at:scene.at,type:'interactive',chatId:'group',title:scene.title,description:scene.description})),
  {id:'mother-reminder',at:Date.UTC(2091,2,31,23),type:'message',chatId:'mae',title:'Mensagem da Mãe',description:'Desliga as luzes antes de deitar, você tem mania de deixar tudo ligado.'},
  {id:'tech-damaged',at:Date.UTC(2091,3,1,0,51),type:'equipment',title:'TECH BANG — FALHA CRÍTICA',description:'Integridade do equipamento comprometida. Comunicação com o equipamento interrompida.'},
@@ -15,13 +16,24 @@ const BIRTHDAY = {at:Date.UTC(2091,3,2),title:'Meu aniversário 🎂',descriptio
 let processingTimeline=false,accessOpen=false,calendarMonth=null,calendarDay=null,lastNarrativeRevision='',lastMapStage='';
 function stampAt(at){const date=new Date(at);return {date:date.toLocaleDateString('pt-BR',{timeZone:'UTC'}),time:date.toLocaleTimeString('pt-BR',{timeZone:'UTC',hour:'2-digit',minute:'2-digit',second:'2-digit'})};}
 function initializeNarrativeClock(){
- initializeEquipmentStory();initializeGroupStory();
+ initializeEquipmentStory();initializeGroupStory();initializeDevices();
  state.timeline ??= {events:{},messages:[],lastSeen:null,absence:null};
  state.timeline.events ??= {};state.timeline.messages ??= [];
- if(state.profile && !state.clock)startNarrativeClock();
+ if(state.profile)startNarrativeClock();
+ migrateMessageDeadlines();
 }
 function startNarrativeClock(){
- if(!state.clock)state.clock={startedReal:Date.now(),baseGame:state.gameTime,offsetMs:0,rate:GAME_TIME_RATE};
+ if(!state.clock||!Number.isFinite(state.clock.startedReal)||!Number.isFinite(state.clock.baseGame))state.clock={startedReal:Date.now(),baseGame:state.gameTime,offsetMs:0,rate:GAME_TIME_RATE};
+ if(!Number.isFinite(state.clock.offsetMs))state.clock.offsetMs=0;
+ if(!Number.isFinite(state.clock.rate)||state.clock.rate<=0)state.clock.rate=GAME_TIME_RATE;
+}
+// Real elapsed time is converted only at the clock anchor; all dialogue deadlines use 2091.
+function migrateMessageDeadlines(){
+ if(state.messageClockVersion===1)return;
+ const now=getGameDate().getTime(),rate=state.clock?.rate||1;
+ for(const story of [state.dogStory,state.amelieStory])if(story?.nextAt&&story.nextAt<Date.UTC(2080,0,1))story.nextAt=now+(story.nextAt-Date.now())*rate;
+ for(const id of Object.keys(state.replyDue))state.replyDue[id]=state.sentTimes[id]?.replyAt ?? now+(state.replyDue[id]-Date.now())*rate;
+ state.messageClockVersion=1;
 }
 function recordNarrativeMessage(id,at){
  if(!state.timeline || state.timeline.messages.some(m=>m.id===id))return;
@@ -55,6 +67,7 @@ function processNarrativeEvents(){
    if(changed && !(state.unlocked&&state.page==='mensagens'&&state.openChat==='group'))state.read=state.read.filter(id=>id!=='group');
   }
   changed=processGroupStory()||changed;
+  changed=processDevices()||changed;
   if(changed){save();lastNarrativeRevision='';}
  } finally {processingTimeline=false;}
  flushNarrativeNotifications();
@@ -64,10 +77,10 @@ function flushNarrativeNotifications(){
  const pending=Object.values(state.timeline.events).filter(e=>!e.notified).sort((a,b)=>a.at-b.at);
  for(const event of pending){
   event.notified=true;
-  const page=event.type==='equipment'?'techbang':event.type==='vitals'?'vitals':event.type==='location'?'mapa':'mensagens';
+  const page=event.type==='devices'?'devices':event.type==='equipment'?'techbang':event.type==='vitals'?'vitals':event.type==='location'?'mapa':'mensagens';
   notify(event.title,event.description,page,false,false,event.chatId || (event.id==='dog-found'?'group':null));
  }
- if(pending.length){const only=pending.length===1?pending[0]:null;showToast(only?only.title:pending.length+' novos registros no dispositivo.',only?.chatId?'mensagens':only?.type==='equipment'?'techbang':'calendar',false,only?.chatId || null);}
+ if(pending.length){const only=pending.length===1?pending[0]:null;showToast(only?only.title:pending.length+' novos registros no dispositivo.',only?.chatId?'mensagens':only?.type==='equipment'?'techbang':only?.type==='devices'?'devices':'calendar',false,only?.chatId || null);}
 }
 function renderNarrativeHistory(type){
  const records=Object.values(state.timeline?.events || {}).filter(e=>e.type===type).sort((a,b)=>a.at-b.at);
@@ -116,7 +129,7 @@ function resetTimelineView(){accessOpen=false;calendarMonth=null;calendarDay=nul
 function updateNarrativeUI(){
  if(!state.unlocked)return;
  const revision=Object.keys(state.timeline.events).length+':'+state.groupStory.messages.length+':'+state.dogStory.messages.length+':'+dayKey(state.gameTime);
- if(revision!==lastNarrativeRevision){lastNarrativeRevision=revision;if(['calendar','vitals','mapa','techbang','seguranca'].includes(state.page))render();else if(state.page==='mensagens'&&state.openChat==='group')refreshDogChat();else if(state.page==='galeria'||state.page==='mensagens')render();}
+ if(revision!==lastNarrativeRevision){lastNarrativeRevision=revision;if(['calendar','vitals','mapa','techbang','seguranca','devices'].includes(state.page))render();else if(state.page==='mensagens'&&state.openChat==='group')refreshDogChat();else if(state.page==='galeria'||state.page==='mensagens')render();}
  updateMessageBadges();
  if(state.page==='mapa'){
   const p=currentNarrativePosition(),marker=content.querySelector('.player-marker'),route=content.querySelector('#journeyRoute'),label=content.querySelector('#journeyLocation');

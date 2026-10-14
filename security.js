@@ -90,8 +90,8 @@ function restartAfterSecurityFailure() {
   stopSecurityAlarm(); lastClosedSector = null; soundMuted = false;
   delete chats.emergency;
   // Preserve player-authored notes and wallpaper; reset narrative session progress.
-  const gustavoDiaryUnlocked=state.gustavoDiaryUnlocked, groupStory=state.groupStory, diaryUnlocked=state.diaryUnlocked, techBang=state.techBang, motherMessages=state.motherMessages, amelieStory=state.amelieStory, diary = state.diary, notes = state.notes, wallpaper = state.wallpaper, profile = state.profile, gameTime = state.gameTime, clock = state.clock, timeline = state.timeline, dogStory = state.dogStory, vitals = state.vitals;
-  state = {...structuredClone(initialState),gustavoDiaryUnlocked,groupStory,diaryUnlocked,techBang,motherMessages,amelieStory,diary,notes,wallpaper,profile,gameTime,clock,timeline,dogStory,vitals,security:freshSecurity()};
+  const devices=state.devices, readDocuments=state.readDocuments, gustavoDiaryUnlocked=state.gustavoDiaryUnlocked, groupStory=state.groupStory, diaryUnlocked=state.diaryUnlocked, techBang=state.techBang, motherMessages=state.motherMessages, amelieStory=state.amelieStory, diary = state.diary, notes = state.notes, wallpaper = state.wallpaper, profile = state.profile, gameTime = state.gameTime, clock = state.clock, timeline = state.timeline, dogStory = state.dogStory, vitals = state.vitals;
+  state = {...structuredClone(initialState),devices,readDocuments,gustavoDiaryUnlocked,groupStory,diaryUnlocked,techBang,motherMessages,amelieStory,diary,notes,wallpaper,profile,gameTime,clock,timeline,dogStory,vitals,security:freshSecurity()};
   document.dispatchEvent(new Event('pirate40:reset-session'));
   save();
   $('#securityFailure').classList.add('hidden');
@@ -183,7 +183,7 @@ function sendEmergencyMessage(sender,text,index,phase='invasion') {
  const reading=state.unlocked && state.page==='mensagens' && state.openChat==='emergency';
  if(reading)state.security.readCount=state.security.messages.length;
  save();notify(sender,text,'mensagens',!reading,state.security.status==='active','emergency');
- if(state.unlocked && state.page==='mensagens'){render();const log=content.querySelector('.chat');if(reading && log)log.scrollTop=log.scrollHeight;}
+ if(state.unlocked && state.page==='mensagens'){render();}
  updateMessageBadges();
 }
 function deliverEmergencyMessages() {

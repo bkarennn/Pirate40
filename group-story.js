@@ -17,7 +17,18 @@ const MISSING_BRANCHES=[
 const FEEDING_FALLBACK_AT=Date.UTC(2091,3,1,6,16);
 const GROUP_MESSAGE_GAP=3000;
 let dogNameDraft='';
-function initializeGroupStory(){state.groupStory ??= {messages:[],counts:{},responses:{},dogName:null,feeding:null,missingChoice:null};}
+function initializeGroupStory(){
+ state.groupStory ??= {};
+ const s=state.groupStory;
+ s.messages ??= [];s.counts ??= {};s.responses ??= {};
+ s.dogName ??= null;s.feeding ??= null;s.missingChoice ??= null;
+ // Attach known IDs to legacy messages without replacing their text or timestamps.
+ for(const [id,scene] of Object.entries(GROUP_SCENES))scene.lines.forEach((line,i)=>{
+  const key='group-'+id+'-'+i;if(s.messages.some(m=>m.id===key))return;
+  const old=s.messages.find(m=>!m.id&&m.sender===line[0]&&m.text===line[1]&&messageTimestamp(m)===scene.at+i*GROUP_MESSAGE_GAP);
+  if(old)old.id=key;
+ });
+}
 function appendGroupStoryMessage(id,line,at,mine=false){
  const story=state.groupStory;if(story.messages.some(m=>m.id===id))return false;
  story.messages.push({id,sender:mine?'Pirate 40':line[0],text:line[1],from:mine?'mine':'other',receivedAt:at,...stampAt(at)});
@@ -39,18 +50,35 @@ function processGroupStory(){
  const s=state.groupStory;let changed=false;
  for(const [id,scene] of Object.entries(GROUP_SCENES)){
   if(!state.timeline.events['group-'+id])continue;
-  const count=Math.min(scene.lines.length,1+Math.floor((state.gameTime-scene.at)/GROUP_MESSAGE_GAP));
-  while((s.counts[id]||0)<count){const i=s.counts[id]||0;changed=appendGroupStoryMessage('group-'+id+'-'+i,scene.lines[i],scene.at+i*GROUP_MESSAGE_GAP)||changed;s.counts[id]=i+1;}
+  const count=Math.max(0,Math.min(scene.lines.length,1+Math.floor((state.gameTime-scene.at)/GROUP_MESSAGE_GAP)));
+  for(let i=0;i<count;i++)changed=appendGroupStoryMessage('group-'+id+'-'+i,scene.lines[i],scene.at+i*GROUP_MESSAGE_GAP)||changed;
+  if(s.counts[id]!==count){s.counts[id]=count;changed=true;}
  }
  if(state.gameTime>=FEEDING_FALLBACK_AT)changed=programDogFeeding(FEEDING_FALLBACK_AT,true)||changed;
- if(s.counts.missing===GROUP_SCENES.missing.lines.length&&!state.timeline.events['missing-confirmed']){
+ if(missingSceneReady()&&!state.timeline.events['missing-confirmed']){
   groupRecord('missing-confirmed',GROUP_SCENES.missing.at+18*GROUP_MESSAGE_GAP,'Pirate 40 não foi encontrado','O grupo relatou que Pirate 40 não está na base. A conversa aguarda sua resposta.');changed=true;
  }
+
+ if(Number.isInteger(s.missingChoice)&&MISSING_BRANCHES[s.missingChoice]){
+  const choiceMessage=s.messages.find(m=>m.id==='missing-choice'||(m.from==='mine'&&m.text===MISSING_OPTIONS[s.missingChoice]));
+  const at=choiceMessage?messageTimestamp(choiceMessage):(s.responses.missing?.at ? s.responses.missing.at-GROUP_MESSAGE_GAP : state.gameTime);
+  if(choiceMessage&&!choiceMessage.id)choiceMessage.id='missing-choice';
+  changed=appendGroupStoryMessage('missing-choice',['Pirate 40',MISSING_OPTIONS[s.missingChoice]],at,true)||changed;
+  if(!s.responses.missing){s.responses.missing={at:at+GROUP_MESSAGE_GAP,count:0,lines:MISSING_BRANCHES[s.missingChoice]};changed=true;}
+ }
+
  for(const [id,response] of Object.entries(s.responses)){
   const count=Math.min(response.lines.length,Math.max(0,1+Math.floor((state.gameTime-response.at)/GROUP_MESSAGE_GAP)));
-  while(response.count<count){const i=response.count;changed=appendGroupStoryMessage('group-response-'+id+'-'+i,response.lines[i],response.at+i*GROUP_MESSAGE_GAP)||changed;response.count++;}
+  for(let i=0;i<count;i++)changed=appendGroupStoryMessage('group-response-'+id+'-'+i,response.lines[i],response.at+i*GROUP_MESSAGE_GAP)||changed;
+  if(response.count!==count){response.count=count;changed=true;}
  }
  return changed;
+}
+function missingSceneReady(){
+ const scene=GROUP_SCENES.missing;
+ return getGameDate().getTime()>=scene.at+(scene.lines.length-1)*GROUP_MESSAGE_GAP &&
+ !!state.timeline?.events?.['group-missing'] &&
+ scene.lines.every((_,i)=>state.groupStory.messages.some(m=>m.id==='group-missing-'+i));
 }
 function allBaseMessages(){return [...chats.group.messages,...BASE_HISTORY,...state.dogStory.messages,...(state.groupStory?.messages||[])].sort((a,b)=>messageTimestamp(a)-messageTimestamp(b));}
 function groupStoryTyping(){
@@ -67,7 +95,7 @@ function dogCarePanel(){
 function groupStoryControls(){
  const s=state.groupStory;let html='';
  if(s.counts.naming===GROUP_SCENES.naming.lines.length&&!s.dogName)html+='<form id="dogNameForm" class="panel"><label for="dogNameInput">Nome do cachorro</label><input class="input" id="dogNameInput" maxlength="24" required value="'+escapeHtml(dogNameDraft)+'" placeholder="Escolha um nome"/><button class="primary" type="submit">Escolher nome</button><p id="dogNameFeedback" role="status"></p></form>';
- if(s.counts.missing===GROUP_SCENES.missing.lines.length&&s.missingChoice===null)html+='<div class="responses" aria-label="Responder ao grupo">'+MISSING_OPTIONS.map((text,i)=>'<button class="secondary" data-missing-choice="'+i+'">'+escapeHtml(text)+'</button>').join('')+'</div>';
+ if(missingSceneReady()&&s.missingChoice===null)html+='<div class="responses" aria-label="Responder ao grupo">'+MISSING_OPTIONS.map((text,i)=>'<button class="secondary" data-missing-choice="'+i+'">'+escapeHtml(text)+'</button>').join('')+'</div>';
  return html+dogCarePanel();
 }
 content.addEventListener('input',e=>{if(e.target.id==='dogNameInput')dogNameDraft=e.target.value;});
@@ -87,7 +115,7 @@ content.addEventListener('click',e=>{
  }
  const choice=e.target.closest('[data-missing-choice]');if(!choice)return;
  const s=state.groupStory,index=Number(choice.dataset.missingChoice);
- if(state.openChat!=='group'||s.missingChoice!==null||s.counts.missing!==GROUP_SCENES.missing.lines.length||!Number.isInteger(index)||index<0||index>2)return;
+ if(state.openChat!=='group'||s.missingChoice!==null||!missingSceneReady()||!Number.isInteger(index)||index<0||index>2)return;
  s.missingChoice=index;const at=getGameDate().getTime();appendGroupStoryMessage('missing-choice',['Pirate 40',MISSING_OPTIONS[index]],at,true);
  s.responses.missing={at:at+GROUP_MESSAGE_GAP,count:0,lines:MISSING_BRANCHES[index]};save();refreshDogChat();
 });

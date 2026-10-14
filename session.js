@@ -4,7 +4,7 @@ const GAME_TIME_RATE = 1; // One real second = one narrative second.
 const PROFILE_PRONOUNS = ['he','she','neutral'];
 let gameLastTick = performance.now(), gameClockActive = false, sessionTimer = null;
 let vitalsLastTick = performance.now();
-if(!Number.isFinite(state.gameTime))state.gameTime=GAME_START_TIME;
+if(!Number.isFinite(state.gameTime)){const saved=typeof state.gameTime==='string'?(Number(state.gameTime)||Date.parse(state.gameTime)):NaN;state.gameTime=Number.isFinite(saved)?saved:GAME_START_TIME;}
 if(!state.vitals || !Number.isFinite(state.vitals.bpm))state.vitals={bpm:76,mode:'normal'};
 if(typeof state.profile?.name !== 'string' || !state.profile.name.trim() || !PROFILE_PRONOUNS.includes(state.profile.pronouns))state.profile=null;
 function playerName(){return state.profile?.name || 'Pirate 40';}
@@ -69,7 +69,7 @@ function restartWholeStory(){
  stopSessionTimers();closePhoto(false);if($('#restartDialog').open)$('#restartDialog').close();
  // Remove only owned keys. Other applications' storage is never touched.
  localStorage.removeItem(STORAGE_KEY);localStorage.removeItem('pirate40-ia-v1');
- state=structuredClone(initialState);state.security=freshSecurity();delete chats.emergency;messengerProfile=null;profileTrail=[];diaryEditing=null;diaryQuery='';diaryPasswordDraft='';diaryOwner='pirate';gustavoFolder='all';gustavoPasswordDraft='';dogNameDraft='';resetTimelineView();initializeNarrativeClock();mapView.x=350;mapView.y=100;mapView.zoom=1.2;
+ state=structuredClone(initialState);state.security=freshSecurity();delete chats.emergency;messengerProfile=null;profileTrail=[];diaryEditing=null;diaryQuery='';diaryPasswordDraft='';diaryOwner='pirate';gustavoFolder='all';gustavoPasswordDraft='';remoteDevice=null;remoteSection='overview';dogNameDraft='';resetTimelineView();initializeNarrativeClock();mapView.x=350;mapView.y=100;mapView.zoom=1.2;
  lastClosedSector=null;soundMuted=false;audioPrepared=false;
  document.dispatchEvent(new Event('pirate40:reset-session'));
  $('#securityFailure').classList.add('hidden');systemScreen.inert=false;scanScreen.inert=false;

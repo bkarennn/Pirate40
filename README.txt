@@ -127,7 +127,22 @@ NAVEGAÇÃO ENTRE APLICATIVOS
 
 DIÁRIOS HISTÓRICOS DE PIRATE 40 E GUSTAVO
 - diary-archive.js armazena documentos históricos imutáveis, a conversa antiga sobre Lisandra e a interface do dispositivo local sincronizado. Nenhuma rede ou dispositivo real é acessado.
-- Diário permite alternar proprietário. Gustavo possui bloqueio e salvamento independentes; cartas em Para Mamãe, também disponíveis na sequência cronológica geral. Registros abrem/fecham e têm rolagem própria.
+- O Diário principal pertence somente a Pirate 40. O arquivo de Gustavo é acessado exclusivamente em Dispositivos, após detecção, pareamento e senha própria; cartas em Para Mamãe e sequência cronológica geral. Registros abrem/fecham e têm rolagem própria.
 - Datas históricas não alteram o relógio da partida. Miragem usa somente o ano 2082; documentos sem data exata mantêm essa indicação. A conversa de Lisandra foi situada em 18/02/2091, antes dos eventos de março, sem notificação.
 - Foto existente fotos/girafa.jpg adicionada sem alteração do original. Textos de cartas preservados; referência aos registros de Esther sem revelar sua senha.
 - Reinício completo bloqueia ambos os diários; reinício por invasão preserva desbloqueios. Anotações pessoais continuam editáveis, documentos originais permanecem somente leitura.
+
+CORREÇÃO DE CRONOLOGIA E RECUPERAÇÃO DO HISTÓRICO
+- Falha reproduzida: contadores de grupo concluídos com mensagens ausentes impediam o preenchimento do histórico. O processamento agora verifica IDs individuais, recupera somente faltantes e recalcula contadores; não substitui texto ou escolhas salvas.
+- Inicialização normaliza campos ausentes em saves antigos. Escolhas do desaparecimento são preservadas e suas respostas recuperadas se necessário.
+- A sequência de 02/04 começa às 09:00:00. A escolha exige todas as 19 mensagens; com os intervalos existentes, fica disponível às 09:00:54 e permanece pendente nos dias seguintes.
+- Todos os chats ordenam mensagens por timestamp narrativo. Retorno ao histórico não filtra por dia atual. Atualizações preservam a posição de leitura; seguem mensagens novas apenas quando a leitura já está no fim.
+- O relógio mantém gameTime salvo e converte tempo real decorrido pela âncora startedReal/baseGame, taxa de 1 segundo por segundo em novas partidas. Prazos antigos de mensagens são migrados para essa mesma cronologia; o alarme de 90 segundos permanece no tempo real.
+- Testes: 01/04, 02/04 08:59:59, 09:00:00, 09:00:54, 03/04 e 10/04; recarregamentos, campos ausentes, contadores inconsistentes, escolha salva, duplicação e posição de leitura.
+
+PAREAMENTO LOCAL SIMULADO
+- devices.js define identificadores, presença na rede e interface remota. Esther e Gustavo disponíveis em 02/04/2091 às 09:00 pelo mesmo relógio e evento de retorno; Kevin e Mãe sem data de retorno definida.
+- Detecção gera um único registro/notificação. Pareamento leva uma curta sincronização, salva progresso e não desbloqueia arquivos privados.
+- Registros de Gustavo permanecem intactos. Desbloqueios antigos são preservados, mas exigem o caminho Dispositivos → Nexus de Gustavo → Diário para leitura. Esther permanece protegida, sem senha inventada.
+- Pares, última sincronização, arquivos consultados e desbloqueios são persistidos. Reiniciar História restaura o estado inicial; falha de contenção preserva o progresso.
+- Nenhuma API de rede, rádio ou dispositivos reais é utilizada.

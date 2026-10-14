@@ -43,13 +43,13 @@ content.addEventListener('click',e=>{
  const s=state.amelieStory;
  if(!state.unlocked||state.openChat!=='amelie'||!s.messages.length||s.nextAt||s.stage>1||Number(button.dataset.amelieReply)!==s.stage)return;
  appendPersonalMessage('amelie',AMELIE_REPLIES[s.stage],getGameDate().getTime(),true);
- s.nextAt=Date.now()+typingDelay(AMELIE_MESSAGES[s.stage]);save();render();
+ s.nextAt=getGameDate().getTime()+typingDelay(AMELIE_MESSAGES[s.stage]);save();render();
 });
 document.addEventListener('pirate40:chat-tick',()=>{
- const s=state.amelieStory;if(!s?.nextAt||Date.now()<s.nextAt)return;
- appendPersonalMessage('amelie',AMELIE_MESSAGES[s.stage],getGameDate().getTime());
+ const s=state.amelieStory;if(!s?.nextAt||getGameDate().getTime()<s.nextAt)return;
+ appendPersonalMessage('amelie',AMELIE_MESSAGES[s.stage],s.nextAt);
  if(s.stage===1)s.revealed=true;
- s.stage++;s.nextAt=s.stage===2?Date.now()+typingDelay(AMELIE_MESSAGES[2]):0;
+ s.stage++;s.nextAt=s.stage===2?s.nextAt+typingDelay(AMELIE_MESSAGES[2]):0;
  syncPersonalChats();save();updateMessageBadges();
- if(state.unlocked&&state.page==='mensagens'&&(state.openChat==='amelie'||!state.openChat)){render();const log=content.querySelector('.chat');if(log)log.scrollTop=log.scrollHeight;}
+ if(state.unlocked&&state.page==='mensagens'&&(state.openChat==='amelie'||!state.openChat)){render();}
 });
