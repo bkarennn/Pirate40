@@ -1,6 +1,6 @@
 // Entirely local narrative simulation. No network discovery or external device access.
 const NEXUS_DEVICES = Object.freeze({
- esther:{id:'NXS-EST-01',name:'Esther',arrival:Date.UTC(2091,3,2,9),diary:null,files:[]},
+ esther:{id:'NXS-EST-01',name:'Esther',arrival:Date.UTC(2091,3,2,9),diary:'esther',records:ESTHER_ARCHIVE,files:[]},
  gustavo:{id:'NXS-GUS-01',name:'Gustavo',arrival:Date.UTC(2091,3,2,9),diary:'gustavo',files:[]},
  kevin:{id:'NXS-KEV-01',name:'Kevin',arrival:null,diary:null,files:[]},
  mae:{id:'NXS-MAE-01',name:'Mãe',arrival:null,diary:null,files:[]}

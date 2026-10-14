@@ -72,7 +72,7 @@ try:
     js('state.profile={name:"Teste",pronouns:"neutral"};state.diary=null;save();')
     call('Page.reload');wait('typeof state!=="undefined" && !!state.profile')
     click('#scanButton');wait('state.unlocked')
-    click('[data-go="diario"]');password('errada');click('#diaryUnlockForm button[type="submit"]')
+    click('[data-go="diario"]');click('#diaryUnlockForm button[type="submit"]');assert js('document.querySelector("#diaryLockFeedback").textContent')=='Digite uma senha para continuar.';password('errada');click('#diaryUnlockForm button[type="submit"]')
     assert js('document.querySelector("#diaryLockFeedback").textContent')=='Senha incorreta. Tente novamente.',js('JSON.stringify({form:document.querySelector("#diaryUnlockForm").outerHTML,value:document.querySelector("#diaryPassword").value,active:document.activeElement.tagName})')
     password(' Amélie ');click('#diaryUnlockForm button[type="submit"]')
     wait('!!document.querySelector("#personalDiaryTitle")')
@@ -90,9 +90,37 @@ try:
         call('Input.dispatchKeyEvent',{'type':'keyDown','key':'Enter','code':'Enter','windowsVirtualKeyCode':13,'text':'\r'})
         call('Input.dispatchKeyEvent',{'type':'keyUp','key':'Enter','code':'Enter','windowsVirtualKeyCode':13})
         wait('!!document.querySelector("#personalDiaryTitle")')
-    click('#homeButton');click('[data-go="sistema"]');click('#resetSave');click('#confirmRestart');wait('state.profile===null');assert js('state.diaryUnlocked===false')
+    # Advance only this isolated fixture through the existing narrative clock.
+    click('#homeButton');js('advanceGameTime(2040)')
+    click('[data-go="devices"]');wait('!!document.querySelector("[data-device=gustavo]")')
+    click('[data-device="gustavo"]');click('[data-device-pair]');wait('state.devices.gustavo.paired')
+    click('[data-remote-section="diary"]');click('#gustavoUnlockForm button[type="submit"]')
+    assert js('document.querySelector("#gustavoLockFeedback").textContent')=='Digite uma senha para continuar.'
+    click('#gustavoPassword');call('Input.insertText',{'text':'errada'});click('#gustavoUnlockForm button[type="submit"]')
+    assert js('document.querySelector("#gustavoLockFeedback").textContent')=='Senha incorreta. Tente novamente.'
+    for value in ['Lisandra',' LISÁNDRA ','lisandra']:
+        js('state.gustavoDiaryUnlocked=false;gustavoPasswordDraft="";render()')
+        click('#gustavoPassword');call('Input.insertText',{'text':value})
+        if value=='lisandra':
+            call('Input.dispatchKeyEvent',{'type':'keyDown','key':'Enter','code':'Enter','windowsVirtualKeyCode':13,'text':'\r'})
+            call('Input.dispatchKeyEvent',{'type':'keyUp','key':'Enter','code':'Enter','windowsVirtualKeyCode':13})
+        else: click('#gustavoUnlockForm button[type="submit"]')
+        wait('state.gustavoDiaryUnlocked && !document.querySelector("#gustavoUnlockForm")')
+    for record in js('GUSTAVO_ARCHIVE.map(e=>e.id)'):
+        selector=f'[data-archive-record="{record}"]'
+        click(selector+' summary');assert js('document.querySelector('+json.dumps(selector)+').open')
+        assert js('document.querySelector('+json.dumps(selector+' .archive-text')+').textContent===GUSTAVO_ARCHIVE.find(e=>e.id==='+json.dumps(record)+').body')
+    click('[data-gustavo-folder="letters"]');assert js('document.querySelectorAll(".archive-record").length')==3
+    click('[data-device-list]');click('[data-device="esther"]');click('[data-device-pair]');wait('state.devices.esther.paired')
+    click('[data-remote-section="diary"]');assert js('document.querySelector(".remote-content").textContent.includes("Arquivo privado protegido")')
+    assert not js('!!document.querySelector(".archive-record, #gustavoUnlockForm")')
+    assert js('NEXUS_DEVICES.esther.records===ESTHER_ARCHIVE && ESTHER_ARCHIVE.length===3')
+    call('Page.reload');wait('typeof state!=="undefined" && !!state.profile');click('#scanButton');wait('state.unlocked')
+    assert js('state.diaryUnlocked && state.gustavoDiaryUnlocked && state.devices.gustavo.paired && state.devices.esther.paired')
+    click('[data-go="devices"]');click('[data-device="gustavo"]');click('[data-remote-section="diary"]');assert js('document.querySelectorAll(".archive-record").length')==9
+    click('[data-devices-home]');click('[data-go="sistema"]');click('#resetSave');click('#confirmRestart');wait('state.profile===null');assert js('state.diaryUnlocked===false && state.gustavoDiaryUnlocked===false')
     assert not errors,errors
-    print('PASS Chromium: native clicks/Enter, error, all password variants, immediate unlock, three complete records, reopening, reload and legacy null diary; no JS exceptions.')
+    print('PASS Chromium: Gustavo pairing/passwords/nine records/three letters, Esther paired and locked, both unlocks persisted/reset; native clicks/Enter, error, all password variants, immediate unlock, three complete records, reopening, reload and legacy null diary; no JS exceptions.')
     call('Browser.close')
 finally:
     try: process.wait(timeout=5)

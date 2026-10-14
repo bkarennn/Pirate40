@@ -61,10 +61,12 @@ function normalizePersonalDiary(){
  state.diary=candidates.filter(note=>note&&typeof note==='object'&&!Array.isArray(note)).map((note,index)=>({...note,id:note.id??'legacy-note-'+index,title:String(note.title??'Sem título'),body:String(note.body??note.text??''),at:Number.isFinite(note.at)?note.at:state.gameTime}));
  save();
 }
+function normalizeDiaryPassword(value){return String(value??'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
 function unlockPersonalDiary(form){
  const input=form?.querySelector?.('#diaryPassword') || $('#diaryPassword');
  if(!input)return;
- const value=input.value.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ const value=normalizeDiaryPassword(input.value);
+ if(!value){$('#diaryLockFeedback').textContent='Digite uma senha para continuar.';input.setAttribute('aria-invalid','true');return;}
  if(value!=='amelie'){$('#diaryLockFeedback').textContent='Senha incorreta. Tente novamente.';input.setAttribute('aria-invalid','true');return;}
  normalizePersonalDiary();
  state.diaryUnlocked=true;diaryPasswordDraft='';diaryQuery='';
@@ -82,7 +84,7 @@ function diaryEntriesMarkup(){
 function renderDiary(){
  normalizePersonalDiary();
 
- if(!state.diaryUnlocked)return head('DIÁRIO PESSOAL',escapeHtml(playerName())+' · Pirate 40')+'<form id="diaryUnlockForm" class="panel diary-lock"><span class="widget-icon">'+icon('lock')+'</span><p>Este arquivo está protegido.</p><label for="diaryPassword">Senha</label><input id="diaryPassword" name="diaryPassword" class="input" type="password" placeholder="Digite a senha" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="100" aria-describedby="diaryLockFeedback" required/><button type="button" class="secondary" id="showDiaryPassword" aria-pressed="false">Mostrar senha</button><p id="diaryLockFeedback" role="status"></p><button class="primary" type="submit">Desbloquear</button></form>';
+ if(!state.diaryUnlocked)return head('DIÁRIO PESSOAL',escapeHtml(playerName())+' · Pirate 40')+'<form id="diaryUnlockForm" novalidate class="panel diary-lock"><span class="widget-icon">'+icon('lock')+'</span><p>Este arquivo está protegido.</p><label for="diaryPassword">Senha</label><input id="diaryPassword" name="diaryPassword" class="input" type="password" placeholder="Digite a senha" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="100" aria-describedby="diaryLockFeedback" required/><button type="button" class="secondary" id="showDiaryPassword" aria-pressed="false">Mostrar senha</button><p id="diaryLockFeedback" role="status"></p><button class="primary" type="submit">Desbloquear</button></form>';
  const edit=state.diary.find(n=>n.id===diaryEditing);
  return '<h2 id="personalDiaryTitle" tabindex="-1">DIÁRIO PESSOAL — PIRATE 40</h2><p class="meta">'+escapeHtml(playerName())+'</p>'+`<p class="muted">Memórias de Pirate 40 e descobertas de quem está conectado em 2026.</p><label class="diary-search">Pesquisar registros<input class="input" id="diarySearch" type="search" value="${escapeHtml(diaryQuery)}" placeholder="Título ou texto"/></label><div id="diaryEntries">${diaryEntriesMarkup()}</div><section class="panel"><h3>${edit?'Editar descoberta':'Nova anotação pessoal · 2026'}</h3><label>Título<input class="input" id="diaryTitle" maxlength="100" value="${escapeHtml(edit?.title || '')}"/></label><label>Texto<textarea id="diaryBody" maxlength="20000">${escapeHtml(edit?.body || '')}</textarea></label><p class="muted" id="diaryFeedback" role="status">Só você escreve suas descobertas. A data usa o relógio de 2091.</p><div class="responses"><button class="primary" id="saveDiary">Salvar</button>${edit?'<button class="secondary" id="cancelDiary">Cancelar edição</button>':''}</div></section>`;
 }

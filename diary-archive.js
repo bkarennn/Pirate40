@@ -8,7 +8,7 @@ function archiveCards(entries){
 function renderGustavoDiary(){
  if(!remoteDiaryAccess('gustavo'))return '<p class="muted">Conecte e pareie o dispositivo de Gustavo para acessar este arquivo.</p>';
  const top=head('Diário de Gustavo','DISPOSITIVO PESSOAL · ARQUIVO LOCAL SINCRONIZADO');
- if(!state.gustavoDiaryUnlocked)return top+'<form id="gustavoUnlockForm" class="panel diary-lock"><span class="widget-icon">'+icon('lock')+'</span><p>Arquivo privado bloqueado.</p><label for="gustavoPassword">Senha</label><input id="gustavoPassword" class="input" type="password" autocomplete="off" maxlength="100" required value="'+escapeHtml(gustavoPasswordDraft)+'"/><p id="gustavoLockFeedback" role="status"></p><button class="primary" type="submit">Desbloquear</button></form>';
+ if(!state.gustavoDiaryUnlocked)return top+'<form id="gustavoUnlockForm" novalidate class="panel diary-lock"><span class="widget-icon">'+icon('lock')+'</span><p>Arquivo privado bloqueado.</p><label for="gustavoPassword">Senha</label><input id="gustavoPassword" class="input" type="password" autocomplete="off" maxlength="100" required value="'+escapeHtml(gustavoPasswordDraft)+'"/><p id="gustavoLockFeedback" role="status"></p><button class="primary" type="submit">Desbloquear</button></form>';
  const entries=GUSTAVO_ARCHIVE.filter(entry=>gustavoFolder==='all'||entry.folder==='letters');
  return top+'<p class="muted">Memórias privadas de Gustavo. Estas cartas não foram enviadas.</p><div class="diary-owners"><button class="secondary" data-gustavo-folder="all" aria-pressed="'+(gustavoFolder==='all')+'">Todos os registros</button><button class="secondary" data-gustavo-folder="letters" aria-pressed="'+(gustavoFolder==='letters')+'">Para Mamãe</button></div><section aria-label="Registros de Gustavo">'+archiveCards(entries)+'</section>';
 }
@@ -19,7 +19,10 @@ content.addEventListener('click',event=>{
 content.addEventListener('submit',event=>{
  if(event.target.id!=='gustavoUnlockForm')return;event.preventDefault();
  if(!remoteDiaryAccess('gustavo'))return;
- if($('#gustavoPassword').value.trim().toLowerCase()!=='lisandra'){$('#gustavoLockFeedback').textContent='Senha inválida. Acesso negado.';return;}
+ const input=event.target.querySelector?.('#gustavoPassword') || $('#gustavoPassword');
+ const value=normalizeDiaryPassword(input.value);
+ if(!value){$('#gustavoLockFeedback').textContent='Digite uma senha para continuar.';input.setAttribute('aria-invalid','true');return;}
+ if(value!=='lisandra'){$('#gustavoLockFeedback').textContent='Senha incorreta. Tente novamente.';input.setAttribute('aria-invalid','true');return;}
  state.gustavoDiaryUnlocked=true;gustavoPasswordDraft='';save();render();
 });
 const PIRATE_ARCHIVE = Object.freeze([
@@ -43,7 +46,7 @@ const GUSTAVO_ARCHIVE = Object.freeze([
   {
     "id": "gustavo-0",
     "title": "Feliz Dia das Mães — 2085",
-    "body": "Mãe, desculpa ter fugido daquele jeito, mas sendo sincero? Você e papai estão malucos!\n\nMãe, eu não podia ficar sentado vendo vocês lamberem os pés da Neuronix, eu não podia aceitar aquilo, mas eu vou salvar você, mamãe.\n\nFeliz Dia das Mães.",
+    "body": "Mãe, desculpa ter fugido daquele jeito, mas sendo sincero? Você e papai estão malucos!\n\nMãe, eu não podia ficar sentado vendo vocês lamberem os pés da Neuronix, eu não podia aceitar aquilo, mas eu vou salvar você, mamãe, e vou te dar um buquê de girassóis depois!\n\nFeliz Dia das Mães.",
     "at": 3640204800000,
     "folder": "letters"
   },
@@ -57,7 +60,7 @@ const GUSTAVO_ARCHIVE = Object.freeze([
   {
     "id": "gustavo-2",
     "title": "Feliz Dia das Mães — 2087",
-    "body": "Feliz Dia das Mães, mãe.\n\nEu espero que em algum lugar do céu, você esteja me ouvindo, e que nesse céu, a sua voz realmente pertença a você, que seja você falando comigo, e não aquele chip idiota.\n\nEu queria que você tivesse conhecido a Mãe, sabe, de verdade. Ela me trata bem, apesar de tudo, todos os dias eu sinto sua falta.\n\nAliás, eu estou cuidando da Lisandra, fica tranquila.\n\nTe amo, mãe.",
+    "body": "Feliz Dia das Mães, mãe.\n\nEu espero que em algum lugar do céu, você esteja me ouvindo, e que nesse céu, a sua voz realmente pertença a você, que seja você falando comigo, e não aquele chip idiota.\n\nEu queria que você tivesse conhecido a Mãe, sabe, de verdade, ela me trata bem, apesar de tudo, todos os dias eu sinto sua falta.\n\nAliás, eu estou cuidando da Lisandra, fica tranquila.\n\nTe amo, mãe.",
     "at": 3703276800000,
     "folder": "letters"
   },
@@ -89,8 +92,47 @@ const GUSTAVO_ARCHIVE = Object.freeze([
     "at": null,
     "dateLabel": "Após a perda da mãe · data da escrita não definida",
     "folder": "private"
+  },
+  {
+    "id": "gustavo-esther-arrival",
+    "title": "Uma menina nova",
+    "body": "A Mãe trouxe uma menina para a base, o nome dela é Esther.\n\nEla não abriu um sorriso desde que entrou, ela disse que tem um garoto chamado Kevin que ela não pode deixar para trás.\n\nEla pareceu muito desesperada, mas a gente vai ajudar ela.",
+    "at": 3643142400000,
+    "folder": "daily"
+  },
+  {
+    "id": "gustavo-kevin-arrival",
+    "title": "Kevin chegou",
+    "body": "Kevin chegou na base.\n\nEle estava sorrindo, por incrível que pareça, mesmo todo roxo por causa dos usuários de chip que bateram nele.\n\nEle foi muito legal, disse que ele só teve que fugir porque senão ia dar uma surra nos chips.\n\nBom, que bom que ele acredita nisso.",
+    "at": 3643228800000,
+    "folder": "daily"
   }
 ].map(Object.freeze));
+// Private Esther records: stored for future release; no password has been defined.
+const ESTHER_ARCHIVE = Object.freeze([
+  {
+    "id": "esther-family",
+    "title": "Uma nova família",
+    "body": "Uma mulher me deu esse dispositivo, disse que iríamos ficar um bom tempo juntos, e que agora eu fazia parte da família. De acordo com ela, é importante anotar.\n\nBom, hoje eu resgatei Kevin, quer dizer, todos nós.\n\nEstamos em uma base em alguma parte da Oceania, ela pertence à mulher. Ela não pode revelar seu verdadeiro nome, achei maneira pra uma mulher de 39 anos, espero que ela não consiga ler isso.\n\nAqui também tem o Gustavo, ele não fala muito, mas fica me olhando de longe.\n\nA mulher me disponibilizou um quarto, acho que eu me acostume com essa loucura.",
+    "at": 3643228800000,
+    "folder": "daily"
+  },
+  {
+    "id": "esther-world-control",
+    "title": "O dia em que tudo mudou",
+    "body": "Tudo já estava acontecendo antes do dia 13 de fevereiro de 2083.\n\nAconteceu aos poucos, e estávamos deixando, estávamos cedendo, éramos ratos indo para a ratoeira.\n\nO Miragem conseguiu o controle de todas as pessoas que estavam com os chips.\n\nLembro de que as pessoas não sorriam, não choravam, apenas pareciam zumbis sem alma, submissas, sem sonhos.\n\nÉ como se todo o esforço, todos os protestos, todo o escândalo fosse em vão.\n\nMas se eu estou aqui, deve haver uma razão.",
+    "at": 3643315200000,
+    "folder": "daily"
+  },
+  {
+    "id": "esther-forgiveness",
+    "title": "Perdão",
+    "body": "Se existir alguém aí em cima, quero pedir perdão, porque nenhum pecado se compara com o que eu fiz, mas agora acho que não tem volta.\n\nQuando eu era menor, acreditava que as pessoas que morriam reencarnavam como fadas e protegiam a natureza.\n\nTambém acreditava que meu nariz cresceria se eu mentisse, mas ele não cresceu, e nenhuma fada veio me visitar, nem a que eu matei.\n\nÉ culpa minha, Senhora Lorena, me perdoa.\n\nGustavo, espero que você me perdoe um dia.",
+    "at": 3659817600000,
+    "folder": "daily"
+  }
+].map(Object.freeze));
+
 const LISANDRA_HISTORY = Object.freeze([
   {
     "from": "other",
